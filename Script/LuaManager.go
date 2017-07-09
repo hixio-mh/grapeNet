@@ -36,7 +36,9 @@ func NewFromFile(name, filename string) *LuaVM {
 	err := newLua.DoFile(filename)
 	if err != nil {
 		fmt.Println(err)
+		return nil
 	}
+	Ins.addVM(name, newLua)
 	return newLua
 }
 
@@ -53,7 +55,9 @@ func NewFromData(name, luaData string) *LuaVM {
 	err := newLua.DoString(luaData)
 	if err != nil {
 		fmt.Println(err)
+		return nil
 	}
+	Ins.addVM(name, newLua)
 	return newLua
 }
 
@@ -66,6 +70,7 @@ func NewVM(name string) *LuaVM {
 	}
 
 	newLua.New(name)
+	Ins.addVM(name, newLua)
 	return newLua
 }
 
