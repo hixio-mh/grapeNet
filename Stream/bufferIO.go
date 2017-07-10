@@ -29,6 +29,21 @@ func NewPacker() *BufferStream {
 	}
 }
 
+func NewResize(size int) *BufferStream {
+	return &BufferStream{
+		vBuffer:    make([]byte, size),
+		readIndex:  0,
+		writeIndex: 0, // 预留4个字节的包长度
+	}
+}
+
+func BuildResize(body []byte) (buf *BufferStream) {
+	buf = NewResize(len(body) + 8)
+	buf.WriteInt32(int32(len(body))) // 写入包长度
+	buf.WriteAuto(body)
+	return
+}
+
 func BuildPacker(body []byte) (buf *BufferStream) {
 	buf = NewPacker()
 	buf.WriteInt32(int32(len(body))) // 写入包长度
@@ -339,7 +354,7 @@ func (b *BufferStream) Unpack(shift bool) (buf *BufferStream, err error) {
 	}
 
 	b.Skip(4)                               // 跳过数据包长度
-	buf = BuildPacker(b.GetBytes(int(len))) // 读取body长度
+	buf = BuildResize(b.GetBytes(int(len))) // 读取body长度
 	err = nil
 
 	if shift {
@@ -358,7 +373,7 @@ func (b *BufferStream) Packer() (buf []byte, err error) {
 		return
 	}
 
-	b.ChangeUInt32(0, uint32(b.writeIndex)) // 改变长
+	b.ChangeUInt32(0, uint32(b.writeIndex-4)) // 改变长
 	buf = b.Slice(0, int(b.writeIndex))
 	err = nil
 	return

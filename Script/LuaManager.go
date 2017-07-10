@@ -8,6 +8,7 @@
 package grapeLua
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 )
@@ -116,4 +117,26 @@ func (m *LuaManager) BindToAll(fnName string, v interface{}) {
 	for _, v := range m.luaMap {
 		v.SetGlobal(fnName, v)
 	}
+}
+
+// 全局LUA搜索指定的TABLE
+func (m *LuaManager) SearchData(gName string, v interface{}) error {
+	m.locker.Lock()
+	defer m.locker.Unlock()
+
+	bFind := false
+	for _, v := range m.luaMap {
+		err := v.GetTable(gName, v)
+		if err != nil {
+			continue
+		}
+		bFind = true
+		break
+	}
+
+	if bFind == false {
+		return errors.New("Can't Find Data...")
+	}
+
+	return nil
 }
