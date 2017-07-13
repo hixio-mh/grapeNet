@@ -77,7 +77,7 @@ func (vm *LuaVM) CallGlobalRet(fnName string, args ...interface{}) (r lua.LValue
 
 	err = vm.l.CallByParam(lua.P{
 		Fn:      fn,
-		NRet:    3,
+		NRet:    1,
 		Protect: true,
 	}, lpValues...)
 

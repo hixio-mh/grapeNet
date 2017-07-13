@@ -2,7 +2,7 @@
 // version 1.0 beta
 // by koangel
 // email: jackliu100@gmail.com
-// 2017/7/8
+// 2017/7/10
 
 package grapeLogger
 
