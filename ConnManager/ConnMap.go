@@ -23,7 +23,7 @@ const (
 
 type ConnInterface interface {
 	GetSessionId() string
-	Send(data []byte, len int) int
+	Send(data []byte) int
 	SendPak(val interface{}) int
 	Close()
 
@@ -43,7 +43,7 @@ func (c *Conn) GetSessionId() string {
 	return c.SessionId
 }
 
-func (c *Conn) Send(data []byte, len int) int {
+func (c *Conn) Send(data []byte) int {
 	return -1
 }
 
@@ -144,16 +144,16 @@ func (c *ConnManager) Get(sessionId string) ConnInterface {
 	return val
 }
 
-func (c *ConnManager) Broadcast(data []byte, len int) {
+func (c *ConnManager) Broadcast(data []byte) {
 	c.locker.RLock()
 	defer c.locker.RUnlock()
 
 	for _, v := range c.sessions {
-		v.Send(data, len)
+		v.Send(data)
 	}
 }
 
-func (c *ConnManager) BroadcastExcep(sessionId string, data []byte, len int) {
+func (c *ConnManager) BroadcastExcep(sessionId string, data []byte) {
 	c.locker.RLock()
 	defer c.locker.RUnlock()
 
@@ -162,6 +162,6 @@ func (c *ConnManager) BroadcastExcep(sessionId string, data []byte, len int) {
 			continue
 		}
 
-		v.Send(data, len)
+		v.Send(data)
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
+	stream "github.com/koangel/grapeNet/Stream"
 )
 
 type NotifyApi interface {
@@ -19,11 +20,17 @@ type NotifyApi interface {
 
 	// 通知连接
 	OnAccept(sid string, conn *TcpConn)
-	OnHandler(sid string, conn *TcpConn)
+	OnHandler(sid string, conn *TcpConn, ownerPak *stream.BufferIO)
 	OnClose(sid string, conn *TcpConn)
 	OnConnected(sid string, conn *TcpConn)
 
 	MainProc() // 简易主处理函数
+
+	// 打包以及加密行为
+	Package(val interface{}) []byte
+
+	Encrypt(data []byte) []byte
+	Decrypt(data []byte) []byte
 }
 
 type TCPNetwork struct {
