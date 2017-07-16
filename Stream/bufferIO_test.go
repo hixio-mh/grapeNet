@@ -7,6 +7,10 @@ import (
 
 var allPacket = []byte("testasdasdasdasdasd")
 
+func defaultFn(val []byte) []byte {
+	return val
+}
+
 func Test_Resize(t *testing.T) {
 	pack := BuildPacker(allPacket)
 	if pack == nil {
@@ -19,7 +23,7 @@ func Test_Resize(t *testing.T) {
 		pack.WriteAuto(allPacket)
 	}
 
-	newPack, err := pack.Packer()
+	newPack, err := pack.Packer(defaultFn)
 	if err != nil {
 		t.Error(err)
 		return
@@ -35,7 +39,7 @@ func Test_Unpack(t *testing.T) {
 		return
 	}
 
-	writeBytes, err := pack.Packer()
+	writeBytes, err := pack.Packer(defaultFn)
 	if err != nil {
 		t.Error(err)
 		return
@@ -43,7 +47,7 @@ func Test_Unpack(t *testing.T) {
 
 	unPackSm := NewPacker()
 	unPackSm.WriteAuto(writeBytes) // 写进去
-	newUnpack, uerr := unPackSm.Unpack(true)
+	newUnpack, uerr := unPackSm.Unpack(true, defaultFn)
 	if uerr != nil {
 		t.Error(uerr)
 		return
