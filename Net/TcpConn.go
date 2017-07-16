@@ -112,7 +112,7 @@ func (c *TcpConn) recvPump() {
 		c.TConn.SetReadDeadline(time.Now().Add(60 * time.Second))
 		c.mainStream.Write(buffer, rn)
 		for {
-			buf, berr := c.mainStream.Unpack(true,c.ownerNet.notifyBind.Decrypt)
+			buf, berr := c.mainStream.Unpack(true, c.ownerNet.notifyBind.Decrypt)
 			if berr != nil {
 				break
 			}
@@ -159,7 +159,7 @@ func (c *TcpConn) processHandler() {
 				return
 			}
 
-			c.ownerNet.notifyBind.OnHandler(c.SessionId, c, bPak)
+			c.ownerNet.notifyBind.OnHandler(c, bPak)
 			break
 		}
 	}
@@ -196,6 +196,8 @@ func (c *TcpConn) SendPak(val interface{}) int {
 func (c *TcpConn) Close() {
 	if atomic.LoadInt32(&c.IsClosed) == 0 {
 		atomic.StoreInt32(&c.IsClosed, 1)
+
+		c.ownerNet.notifyBind.OnClose(c)
 
 		c.TConn.Close() // 关闭连接
 	}

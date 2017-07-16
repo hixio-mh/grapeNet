@@ -19,10 +19,10 @@ type NotifyApi interface {
 	CreateUserData() interface{}
 
 	// 通知连接
-	OnAccept(sid string, conn *TcpConn)
-	OnHandler(sid string, conn *TcpConn, ownerPak *stream.BufferIO)
-	OnClose(sid string, conn *TcpConn)
-	OnConnected(sid string, conn *TcpConn)
+	OnAccept(conn *TcpConn)
+	OnHandler(conn *TcpConn, ownerPak *stream.BufferIO)
+	OnClose(conn *TcpConn)
+	OnConnected(conn *TcpConn)
 
 	MainProc() // 简易主处理函数
 
@@ -73,7 +73,7 @@ func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err
 		return
 	}
 
-	c.notifyBind.OnConnected(conn.SessionId, conn)
+	c.notifyBind.OnConnected(conn)
 	c.DialCM.Register <- conn // 注册账户
 	return
 }
@@ -111,7 +111,7 @@ func (c *TCPNetwork) onAccept() {
 
 		c.AcceptCM.Register <- client // 注册一个全局对象
 
-		c.notifyBind.OnAccept(client.SessionId, client)
+		c.notifyBind.OnAccept(client)
 
 		client.startProc() // 启动线程
 	}
