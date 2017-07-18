@@ -1,2 +1,4 @@
 /Script/*.test
 /Stream/*.test
+/Net/*.test
+/log

@@ -39,17 +39,17 @@ type TCPNetwork struct {
 	DialCM   *cm.ConnManager
 	AcceptCM *cm.ConnManager
 
-	notifyBind NotifyApi // 在指定的行为中通知该服务端
+	nb NotifyApi // 在指定的行为中通知该服务端
 }
 
 /////////////////////////////
 // 创建网络服务器
 func NewTcpServer(addr string, papi NotifyApi) (tcp *TCPNetwork, err error) {
 	tcp = &TCPNetwork{
-		listener:   nil,
-		notifyBind: papi,
-		DialCM:     cm.NewCM(),
-		AcceptCM:   cm.NewCM(),
+		listener: nil,
+		nb:       papi,
+		DialCM:   cm.NewCM(),
+		AcceptCM: cm.NewCM(),
 	}
 
 	err = tcp.listen(addr)
@@ -62,7 +62,12 @@ func NewTcpServer(addr string, papi NotifyApi) (tcp *TCPNetwork, err error) {
 ////////////////////////////
 // 成员函数
 func (c *TCPNetwork) BindNotify(papi NotifyApi) {
-	c.notifyBind = papi
+	c.nb = papi
+}
+
+func (c *TCPNetwork) RemoveSession(sessionId string) {
+	c.AcceptCM.Remove(sessionId)
+	c.DialCM.Remove(sessionId)
 }
 
 func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err error) {
@@ -73,7 +78,7 @@ func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err
 		return
 	}
 
-	c.notifyBind.OnConnected(conn)
+	c.nb.OnConnected(conn)
 	c.DialCM.Register <- conn // 注册账户
 	return
 }
@@ -87,6 +92,8 @@ func (c *TCPNetwork) listen(bindAddr string) error {
 	if err != nil {
 		return err
 	}
+
+	logger.INFO("listen On:%v", bindAddr)
 
 	c.listener = lis
 	go c.onAccept()
@@ -107,12 +114,16 @@ func (c *TCPNetwork) onAccept() {
 		}
 
 		logger.INFO("New Connection:%v，Accept.", conn.RemoteAddr())
-		var client = NewConn(c, conn, c.notifyBind.CreateUserData())
+		var client = NewConn(c, conn, c.nb.CreateUserData())
+
+		c.nb.OnAccept(client)
 
 		c.AcceptCM.Register <- client // 注册一个全局对象
 
-		c.notifyBind.OnAccept(client)
-
 		client.startProc() // 启动线程
 	}
+}
+
+func (c *TCPNetwork) Runnable() {
+	c.nb.MainProc()
 }

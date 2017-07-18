@@ -7,6 +7,8 @@
 package grapeConn
 
 import (
+	"context"
+	"errors"
 	"sync"
 
 	logger "github.com/koangel/grapeNet/Logger"
@@ -27,8 +29,9 @@ type ConnInterface interface {
 	SendPak(val interface{}) int
 	Close()
 
-	RemoveData()
 	InitData()
+
+	RemoveData()
 
 	startProc()
 }
@@ -36,7 +39,11 @@ type ConnInterface interface {
 type Conn struct {
 	SessionId string
 	Type      int
-	Done      chan int
+	Ctx       context.Context
+	Cancel    context.CancelFunc
+
+	Wg   *sync.WaitGroup
+	Once *sync.Once
 }
 
 func (c *Conn) GetSessionId() string {
@@ -51,10 +58,6 @@ func (c *Conn) Close() {
 
 }
 
-func (c *Conn) RemoveData() {
-
-}
-
 func (c *Conn) InitData() {
 
 }
@@ -65,6 +68,10 @@ func (c *Conn) startProc() {
 
 func (c *Conn) SendPak(val interface{}) int {
 	return -1
+}
+
+func (c *Conn) RemoveData() {
+
 }
 
 type ConnManager struct {
@@ -125,11 +132,22 @@ func (c *ConnManager) process() {
 			delete(c.sessions, conn.GetSessionId())
 			c.locker.Unlock()
 
-			conn.RemoveData() // 移除数据
+			conn.RemoveData()
 
 			break
 		}
 	}
+}
+
+func (c *ConnManager) Remove(sessionId string) error {
+	conn := c.Get(sessionId)
+	if conn != nil {
+		c.Unregister <- conn
+
+		return nil
+	}
+
+	return errors.New("unknow session Id")
 }
 
 func (c *ConnManager) Get(sessionId string) ConnInterface {

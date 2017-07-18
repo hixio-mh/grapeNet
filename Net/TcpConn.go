@@ -7,7 +7,9 @@
 package grapeNet
 
 import (
+	"context"
 	"net"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -31,6 +33,11 @@ type TcpConn struct {
 	IsClosed int32
 }
 
+const (
+	ReadWaitPing = 45 * time.Second
+	WriteTicker  = 45 * time.Second
+)
+
 //////////////////////////////////////
 // 创建新连接
 func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
@@ -45,7 +52,9 @@ func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
 		process: make(chan *stream.BufferIO, 1024),
 	}
 
-	newConn.Done = make(chan int, 1)
+	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
+	newConn.Once = new(sync.Once)
+	newConn.Wg = new(sync.WaitGroup)
 	newConn.SessionId = cm.CreateUUID(1)
 	newConn.Type = cm.ESERVER_TYPE
 
@@ -73,7 +82,9 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 	}
 
 	conn.TConn = dconn
-	conn.Done = make(chan int, 1)
+	conn.Ctx, conn.Cancel = context.WithCancel(context.Background())
+	conn.Once = new(sync.Once)
+	conn.Wg = new(sync.WaitGroup)
 	conn.SessionId = cm.CreateUUID(2)
 	conn.Type = cm.ECLIENT_TYPE
 
@@ -85,17 +96,23 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 func (c *TcpConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
-	go c.processHandler()
 }
 
 func (c *TcpConn) recvPump() {
 	defer func() {
-		c.Done <- 1
+		if p := recover(); p != nil {
+			logger.ERROR("recover panics: %v", p)
+		}
+
+		c.Cancel() // 结束
+		c.Wg.Wait()
+		c.Close()                             // 关闭SOCKET
+		c.ownerNet.RemoveSession(c.SessionId) // 删除
 	}()
 
 	var buffer []byte = make([]byte, 65535)
 
-	c.TConn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 
 	for {
 		rn, err := c.TConn.Read(buffer)
@@ -109,23 +126,38 @@ func (c *TcpConn) recvPump() {
 			return
 		}
 
-		c.TConn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		if atomic.LoadInt32(&c.IsClosed) == 1 {
+			return
+		}
+
+		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		c.mainStream.Write(buffer, rn)
 		for {
-			buf, berr := c.mainStream.Unpack(true, c.ownerNet.notifyBind.Decrypt)
+			buf, berr := c.mainStream.Unpack(true, c.ownerNet.nb.Decrypt)
 			if berr != nil {
 				break
 			}
 
-			c.process <- buf // 缓冲期
+			c.ownerNet.nb.OnHandler(c, buf)
 		}
 	}
 }
 
 func (c *TcpConn) writePump() {
+	c.Wg.Add(1)
+	ticker := time.NewTicker(WriteTicker)
+	defer func() {
+		if p := recover(); p != nil {
+			logger.ERROR("recover panics: %v", p)
+		}
+
+		c.Wg.Done()
+		logger.INFO("write Pump defer done!!!")
+	}()
+
 	for {
 		select {
-		case <-c.Done:
+		case <-c.Ctx.Done():
 			logger.INFO("%v session write done...", c.SessionId)
 			return
 		case bData, ok := <-c.send:
@@ -137,29 +169,20 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
-			c.TConn.Write(bData)
 			c.TConn.SetWriteDeadline(time.Now().Add(60 * time.Second))
-			break
-		}
-	}
-}
+			if _, err := c.TConn.Write(bData); err != nil {
+				logger.ERROR("write Pump error:%v !!!", err)
+				return
+			}
 
-func (c *TcpConn) processHandler() {
-	for {
-		select {
-		case <-c.Done:
-			logger.INFO("%v session processHandler done...", c.SessionId)
-			return
-		case bPak, ok := <-c.process:
+			break
+		case _, ok := <-ticker.C:
 			if !ok {
 				return
 			}
-
 			if atomic.LoadInt32(&c.IsClosed) == 1 {
 				return
 			}
-
-			c.ownerNet.notifyBind.OnHandler(c, bPak)
 			break
 		}
 	}
@@ -170,7 +193,7 @@ func (c *TcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode := c.ownerNet.notifyBind.Encrypt(data)
+	encode := c.ownerNet.nb.Encrypt(data)
 
 	select {
 	case c.send <- encode:
@@ -189,25 +212,28 @@ func (c *TcpConn) SendPak(val interface{}) int {
 		return -1
 	}
 
-	pack := c.ownerNet.notifyBind.Package(val)
+	pack := c.ownerNet.nb.Package(val)
 	return c.Send(pack)
 }
 
 func (c *TcpConn) Close() {
-	if atomic.LoadInt32(&c.IsClosed) == 0 {
-		atomic.StoreInt32(&c.IsClosed, 1)
+	c.Once.Do(func() {
+		if atomic.LoadInt32(&c.IsClosed) == 0 {
+			atomic.StoreInt32(&c.IsClosed, 1)
 
-		c.ownerNet.notifyBind.OnClose(c)
+			c.ownerNet.nb.OnClose(c)
 
-		c.TConn.Close() // 关闭连接
-	}
+			c.TConn.Close() // 关闭连接
+		}
+	})
 }
 
 func (c *TcpConn) RemoveData() {
 	if atomic.LoadInt32(&c.IsClosed) == 1 {
-		close(c.Done)
 		close(c.send)
+		c.send = nil
 		close(c.process)
+		c.process = nil
 	}
 }
 

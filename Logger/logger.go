@@ -23,8 +23,10 @@ func BuildLogger(logDir, logFile string) {
 	os.Mkdir(logDir, 0777)
 	realFile := logDir + "/" + logFile
 
-	l4g.AddFilter("stdout", l4g.DEBUG, l4g.NewConsoleLogWriter())          //输出到控制台,级别为DEBUG
-	l4g.AddFilter("file", l4g.DEBUG, l4g.NewFileLogWriter(realFile, true)) //输出到文件,级别为DEBUG,每次追加该原文件 滚动文件
+	l4g.AddFilter("stdout", l4g.DEBUG, l4g.NewConsoleLogWriter()) //输出到控制台,级别为DEBUG
+	flw := l4g.NewFileLogWriter(realFile, true)
+	flw.SetFormat("[%D %t] [%L] %M")
+	l4g.AddFilter("file", l4g.DEBUG, flw) //输出到文件,级别为DEBUG,每次追加该原文件 滚动文件
 }
 
 func BuildFromXML(xmlFile string) {
