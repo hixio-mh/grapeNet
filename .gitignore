@@ -2,3 +2,4 @@
 /Stream/*.test
 /Net/*.test
 /log
+Logger/debug.test

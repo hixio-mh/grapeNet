@@ -7,9 +7,10 @@
 package grapeLogger
 
 import (
+	"fmt"
 	"os"
 
-	l4g "github.com/alecthomas/log4go"
+	slog "github.com/cihub/seelog"
 )
 
 var isBuild = false
@@ -22,11 +23,42 @@ func BuildLogger(logDir, logFile string) {
 	isBuild = true
 	os.Mkdir(logDir, 0777)
 	realFile := logDir + "/" + logFile
+	realErrorFile := logDir + "/error.log"
+	realDebugFile := logDir + "/debug.log"
 
-	l4g.AddFilter("stdout", l4g.DEBUG, l4g.NewConsoleLogWriter()) //输出到控制台,级别为DEBUG
-	flw := l4g.NewFileLogWriter(realFile, true)
-	flw.SetFormat("[%D %t] [%L] %M")
-	l4g.AddFilter("file", l4g.DEBUG, flw) //输出到文件,级别为DEBUG,每次追加该原文件 滚动文件
+	sConfig := fmt.Sprintf(`
+	<seelog type="asynctimer" asyncinterval="1000">
+		<outputs formatid="main">  
+			<filter levels="info,warn">   
+				<console />    
+				<file path="%v" />
+				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />    
+			</filter>
+			<filter levels="critical,error">
+				<console />   
+				<file path="%v" />
+				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />   
+			</filter>
+			<filter levels="debug">
+				<console />   
+				<file path="%v" />
+				<rollingfile type="size" filename="%v" maxsize="102400" maxrolls="5" />   
+			</filter>
+		</outputs>
+		<formats>
+			<format id="main" format="[%%Date %%Time] [%%File.%%Line] [%%LEVEL] %%Msg%%n"/>   
+		</formats>
+	</seelog>
+	`, realFile, realFile, realErrorFile, realErrorFile, realDebugFile, realDebugFile)
+
+	elog, err := slog.LoggerFromConfigAsString(sConfig)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	elog.SetAdditionalStackDepth(1)
+	slog.UseLogger(elog)
 }
 
 func BuildFromXML(xmlFile string) {
@@ -35,29 +67,40 @@ func BuildFromXML(xmlFile string) {
 	}
 
 	isBuild = true
-	l4g.LoadConfiguration(xmlFile)
+	elog, err := slog.LoggerFromConfigAsFile(xmlFile)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	elog.SetAdditionalStackDepth(1)
+	slog.UseLogger(elog)
 }
 
 func INFO(fmt string, v ...interface{}) {
-	l4g.Info(fmt, v)
+	slog.Infof(fmt, v...)
 }
 
 func DEBUG(fmt string, v ...interface{}) {
-	l4g.Debug(fmt, v...)
+	slog.Debugf(fmt, v...)
 }
 
 func CRT(fmt string, v ...interface{}) {
-	l4g.Critical(fmt, v...)
+	slog.Criticalf(fmt, v...)
 }
 
 func WARN(fmt string, v ...interface{}) {
-	l4g.Warn(fmt, v...)
+	slog.Warnf(fmt, v...)
 }
 
 func ERROR(fmt string, v ...interface{}) {
-	l4g.Error(fmt, v...)
+	slog.Errorf(fmt, v...)
 }
 
 func TRACE(fmt string, v ...interface{}) {
-	l4g.Trace(fmt, v...)
+	slog.Tracef(fmt, v...)
+}
+
+func FLUSH() {
+	slog.Flush()
 }
