@@ -46,7 +46,7 @@ func BuildLogger(logDir, logFile string) {
 			</filter>
 		</outputs>
 		<formats>
-			<format id="main" format="[%%Date %%Time] [%%File.%%Line] [%%LEVEL] %%Msg%%n"/>   
+			<format id="main" format="[%%Date %%Time] [%%File:%%Line] [%%LEVEL] %%Msg%%n"/>   
 		</formats>
 	</seelog>
 	`, realFile, realFile, realErrorFile, realErrorFile, realDebugFile, realDebugFile)
