@@ -57,3 +57,29 @@ func Test_Unpack(t *testing.T) {
 
 	t.Log("finished...")
 }
+func defaultDecrypt(data []byte) []byte {
+	return data
+}
+
+func Test_UnpackLine(t *testing.T) {
+	var stream BufferIO
+
+	stream.WriteAuto([]byte("asdasddddddddddddddddddddd\nasdasddddddddddddddddddddd\n"))
+
+	pakData := [][]byte{}
+
+	for {
+		pData, err := stream.UnpackLine(true, defaultDecrypt)
+		if err != nil {
+			break
+		}
+
+		if pData == nil {
+			break
+		}
+
+		pakData = append(pakData, pData)
+	}
+
+	fmt.Println(pakData)
+}

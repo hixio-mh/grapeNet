@@ -20,7 +20,7 @@ func defaultCreateUserData() interface{} {
 
 // 通知连接
 func defaultOnAccept(conn *TcpConn) {
-	logger.INFO("Default Accept In:%v From:%v", conn.SessionId, conn.TConn.RemoteAddr)
+	logger.INFO("Default Accept In:%v From:%v", conn.SessionId, conn.TConn.RemoteAddr().String())
 }
 
 func defaultOnHandler(conn *TcpConn, ownerPak []byte) {
@@ -51,13 +51,17 @@ func defaultDecrypt(data []byte) []byte {
 }
 
 // 默认的解包数据行为
-func defaultByteData(conn *TcpConn, spak *stream.BufferIO) [][]byte {
+func DefaultByteData(conn *TcpConn, spak *stream.BufferIO) [][]byte {
 	pakData := [][]byte{}
 
 	for {
 		pData, err := spak.Unpack(true, conn.ownerNet.Decrypt)
+		if err != nil {
+			break
+		}
+
 		if pData == nil {
-			return pakData
+			break
 		}
 
 		pakData = append(pakData, pData)
@@ -66,13 +70,17 @@ func defaultByteData(conn *TcpConn, spak *stream.BufferIO) [][]byte {
 	return pakData
 }
 
-func defaultLineData(conn *TcpConn, spak *stream.BufferIO) [][]byte {
+func DefaultLineData(conn *TcpConn, spak *stream.BufferIO) [][]byte {
 	pakData := [][]byte{}
 
 	for {
 		pData, err := spak.UnpackLine(true, conn.ownerNet.Decrypt)
+		if err != nil {
+			break
+		}
+
 		if pData == nil {
-			return pakData
+			break
 		}
 
 		pakData = append(pakData, pData)

@@ -133,7 +133,7 @@ func (c *TcpConn) recvPump() {
 		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		c.mainStream.Write(buffer, rn)
 
-		upak := c.ownerNet.Unpackage(&c.mainStream) // 调用解压行为
+		upak := c.ownerNet.Unpackage(c, &c.mainStream) // 调用解压行为
 		for _, v := range upak {
 			c.ownerNet.OnHandler(c, v)
 		}

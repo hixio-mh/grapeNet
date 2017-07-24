@@ -8,12 +8,23 @@ package grapeLogger
 
 import (
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
+	"strings"
 
 	slog "github.com/cihub/seelog"
 )
 
 var isBuild = false
+
+func GetCurrentDirectory() string {
+	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatal(err)
+	}
+	return strings.Replace(dir, "\\", "/", -1)
+}
 
 func BuildLogger(logDir, logFile string) {
 	if isBuild {
@@ -31,22 +42,22 @@ func BuildLogger(logDir, logFile string) {
 		<outputs formatid="main">  
 			<filter levels="info,warn">   
 				<console />    
-				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />    
+				<rollingfile type="size"  filename="%v" maxsize="20480000" maxrolls="25" />    
 			</filter>
 			<filter levels="critical,error">
 				<console />   
-				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />   
+				<rollingfile type="size"  filename="%v" maxsize="20480000" maxrolls="25" />   
 			</filter>
 			<filter levels="debug">
 				<console />   
-				<rollingfile type="size" filename="%v" maxsize="102400" maxrolls="5" />   
+				<rollingfile type="size" filename="%v" maxsize="20480000" maxrolls="25" />   
 			</filter>
 		</outputs>
 		<formats>
 			<format id="main" format="[%%Date %%Time] [%%File:%%Line] [%%LEVEL] %%Msg%%n"/>   
 		</formats>
 	</seelog>
-	`, realFile, realFile, realErrorFile, realErrorFile, realDebugFile, realDebugFile)
+	`, realFile, realErrorFile, realDebugFile)
 
 	elog, err := slog.LoggerFromConfigAsString(sConfig)
 	if err != nil {

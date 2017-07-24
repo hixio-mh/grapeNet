@@ -228,8 +228,10 @@ func (b *BufferIO) GetLine() (s string, ilen int) {
 		return
 	}
 
-	s = string(b.Slice(0, pos)) // 得到这个字符串
-	ilen = pos
+	linePak := b.Slice(0, pos+1)
+	linePak[pos] = 0
+	s = string(linePak) // 得到这个字符串
+	ilen = pos + 1
 	return
 }
 
@@ -404,8 +406,8 @@ func (b *BufferIO) UnpackLine(shift bool, fn CryptFn) (buf []byte, err error) {
 
 	b.Skip(ilen)
 	bPak := []byte(sBuf) // 读取body长度
-	buf = make([]byte, ilen)
-	copy(buf, bPak)
+	buf = make([]byte, ilen-1)
+	copy(buf, bPak[:ilen-1])
 	err = nil
 
 	if shift {

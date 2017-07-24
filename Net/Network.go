@@ -51,7 +51,7 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 
 		CreateUserData: defaultCreateUserData,
 		Package:        nil,
-		Unpackage:      defaultByteData,
+		Unpackage:      DefaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,
@@ -78,7 +78,7 @@ func NewEmptyTcp() *TCPNetwork {
 
 		CreateUserData: defaultCreateUserData,
 		Package:        nil,
-		Unpackage:      defaultByteData,
+		Unpackage:      DefaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,
