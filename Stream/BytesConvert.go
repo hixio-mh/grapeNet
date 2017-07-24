@@ -158,3 +158,84 @@ func F32TBytes(v float32) []byte {
 func F64TBytes(v float64) []byte {
 	return U64TBytes(math.Float64bits(v))
 }
+
+func A62toi(s string) int {
+	byteData := []byte(s)
+	var ret = 0
+	var minus = 1
+	var nIndex = 0
+
+	if byteData[0] == '-' {
+		minus = -1
+		nIndex++
+	}
+
+	for _, v := range byteData[nIndex:] {
+		ret *= 62
+		if '0' <= v && v <= '9' {
+			ret += int(v - '0')
+		} else if 'a' <= v && v <= 'z' {
+			ret += int(v - 'a' + 10)
+		} else if 'A' <= v && v <= 'Z' {
+			ret += int(v - 'A' + 36)
+		} else {
+			return 0
+		}
+	}
+
+	return ret * minus
+}
+
+var b62Base = []byte("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func CNV10to62(v int) string {
+	var src = 0
+	var minus = 0
+	var baselen = len(b62Base)
+
+	var tmp = [64]int{}
+	var bOut = [128]byte{}
+
+	if v < 0 {
+		minus = 1
+		v *= -1
+	}
+
+	if v < baselen {
+		if minus == 1 {
+			return "-" + string(b62Base[v])
+		} else {
+			return string(b62Base[v])
+		}
+	}
+
+	src = v
+	var i = 0
+	var nCnt = 0
+	for i = 0; src >= baselen; i++ {
+		tmp[i] = src % baselen
+		src /= baselen
+	}
+	i--
+
+	if minus == 1 {
+		bOut[0] = byte('-')
+		bOut[1] = byte(b62Base[src])
+		nCnt += 2
+		for j := 2; i >= 0; i-- {
+			bOut[j] = byte(b62Base[tmp[i]])
+			nCnt++
+			j++
+		}
+	} else {
+		bOut[0] = byte(b62Base[src])
+		nCnt += 1
+		for j := 1; i >= 0; i-- {
+			bOut[j] = byte(b62Base[tmp[i]])
+			nCnt++
+			j++
+		}
+	}
+
+	return string(bOut[:nCnt])
+}

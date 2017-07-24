@@ -53,7 +53,7 @@ func Test_Unpack(t *testing.T) {
 		return
 	}
 
-	fmt.Println(newUnpack.Bytes())
+	fmt.Println(newUnpack)
 
 	t.Log("finished...")
 }

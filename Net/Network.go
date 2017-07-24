@@ -26,7 +26,7 @@ type TCPNetwork struct {
 	// 通知连接
 	OnAccept func(conn *TcpConn)
 	// 数据包进入
-	OnHandler func(conn *TcpConn, ownerPak *stream.BufferIO)
+	OnHandler func(conn *TcpConn, ownerPak []byte)
 	// 连接关闭
 	OnClose func(conn *TcpConn)
 	// 连接成功
@@ -35,7 +35,8 @@ type TCPNetwork struct {
 	MainProc func() // 简易主处理函数
 
 	// 打包以及加密行为
-	Package func(val interface{}) []byte
+	Package   func(val interface{}) []byte
+	Unpackage func(conn *TcpConn, spak *stream.BufferIO) [][]byte
 
 	Encrypt func(data []byte) []byte
 	Decrypt func(data []byte) []byte
@@ -50,6 +51,7 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 
 		CreateUserData: defaultCreateUserData,
 		Package:        nil,
+		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,
@@ -76,6 +78,7 @@ func NewEmptyTcp() *TCPNetwork {
 
 		CreateUserData: defaultCreateUserData,
 		Package:        nil,
+		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,

@@ -6,7 +6,10 @@
 
 package grapeStream
 
-import "errors"
+import (
+	"bytes"
+	"errors"
+)
 
 const (
 	defaultSize = 2048 // 默认数据包长度
@@ -217,6 +220,19 @@ func (b *BufferIO) GetString(size int) string {
 	return string(b.GetBytes(size))
 }
 
+func (b *BufferIO) GetLine() (s string, ilen int) {
+	s = ""
+	ilen = -1
+	pos := bytes.Index(b.vBuffer, []byte{'\n'})
+	if pos == -1 {
+		return
+	}
+
+	s = string(b.Slice(0, pos)) // 得到这个字符串
+	ilen = pos
+	return
+}
+
 /////////////////////////////////
 // 写行为
 func (b *BufferIO) WriteAuto(buf []byte) int {
@@ -282,6 +298,10 @@ func (b *BufferIO) WriteString(v string) {
 	b.WriteAuto([]byte(v))
 }
 
+func (b *BufferIO) WriteLine(v string) {
+	b.WriteAuto([]byte(v + "\n"))
+}
+
 /////////////////////////////
 // 修改指定位置数据
 func (b *BufferIO) ChangeAuto(pos int, buf []byte) {
@@ -343,7 +363,7 @@ func (b *BufferIO) ChangeString(pos int, v string) {
 // 默认协议的首部4个字节为包长度，并返回一个仅有该数据内容的STREAM
 // |len 4byte|body or header|
 // Unpack后会自动shift
-func (b *BufferIO) Unpack(shift bool, fn CryptFn) (buf *BufferIO, err error) {
+func (b *BufferIO) Unpack(shift bool, fn CryptFn) (buf []byte, err error) {
 	buf = nil
 	err = errors.New("Pack Unready...")
 	if b.Available() < 4 {
@@ -355,13 +375,41 @@ func (b *BufferIO) Unpack(shift bool, fn CryptFn) (buf *BufferIO, err error) {
 		return // 包还没准备好
 	}
 
-	b.Skip(4) // 跳过数据包长度
-	data := fn(b.GetBytes(int(len)))
-	buf = BuildResize(data) // 读取body长度
+	b.Skip(4)                        // 跳过数据包长度
+	bPak := fn(b.GetBytes(int(len))) // 读取body长度
+	buf = make([]byte, (len + 4))
+	copy(buf[:4], U32TBytes(uint32(len)))
+	copy(buf[4:], bPak)
 	err = nil
 
 	if shift {
 		b.Shift(int(4 + len)) // 跳过指定长度
+	}
+
+	return
+}
+
+// 解析以\n结尾的数据包并返回一个数据结构
+func (b *BufferIO) UnpackLine(shift bool, fn CryptFn) (buf []byte, err error) {
+	buf = nil
+	err = errors.New("Pack Unready...")
+	if b.Available() < 2 {
+		return // 包还没准备好
+	}
+
+	sBuf, ilen := b.GetLine()
+	if ilen == -1 {
+		return // 不需要解压
+	}
+
+	b.Skip(ilen)
+	bPak := []byte(sBuf) // 读取body长度
+	buf = make([]byte, ilen)
+	copy(buf, bPak)
+	err = nil
+
+	if shift {
+		b.Shift(int(ilen)) // 跳过指定长度
 	}
 
 	return
