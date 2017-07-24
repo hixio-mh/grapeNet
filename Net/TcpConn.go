@@ -133,12 +133,12 @@ func (c *TcpConn) recvPump() {
 		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		c.mainStream.Write(buffer, rn)
 		for {
-			buf, berr := c.mainStream.Unpack(true, c.ownerNet.nb.Decrypt)
+			buf, berr := c.mainStream.Unpack(true, c.ownerNet.Decrypt)
 			if berr != nil {
 				break
 			}
 
-			c.ownerNet.nb.OnHandler(c, buf)
+			c.ownerNet.OnHandler(c, buf)
 		}
 	}
 }
@@ -185,6 +185,7 @@ func (c *TcpConn) writePump() {
 			}
 			break
 		}
+
 	}
 }
 
@@ -193,7 +194,7 @@ func (c *TcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode := c.ownerNet.nb.Encrypt(data)
+	encode := c.ownerNet.Encrypt(data)
 
 	select {
 	case c.send <- encode:
@@ -212,7 +213,12 @@ func (c *TcpConn) SendPak(val interface{}) int {
 		return -1
 	}
 
-	pack := c.ownerNet.nb.Package(val)
+	if c.ownerNet.Package == nil {
+		logger.ERROR("Package Func Error,Can't Send...")
+		return -1
+	}
+
+	pack := c.ownerNet.Package(val)
 	return c.Send(pack)
 }
 
@@ -221,7 +227,7 @@ func (c *TcpConn) Close() {
 		if atomic.LoadInt32(&c.IsClosed) == 0 {
 			atomic.StoreInt32(&c.IsClosed, 1)
 
-			c.ownerNet.nb.OnClose(c)
+			c.ownerNet.OnClose(c)
 
 			c.TConn.Close() // 关闭连接
 		}

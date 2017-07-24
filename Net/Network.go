@@ -14,42 +14,52 @@ import (
 	stream "github.com/koangel/grapeNet/Stream"
 )
 
-type NotifyApi interface {
-	// 创建用户DATA
-	CreateUserData() interface{}
-
-	// 通知连接
-	OnAccept(conn *TcpConn)
-	OnHandler(conn *TcpConn, ownerPak *stream.BufferIO)
-	OnClose(conn *TcpConn)
-	OnConnected(conn *TcpConn)
-
-	MainProc() // 简易主处理函数
-
-	// 打包以及加密行为
-	Package(val interface{}) []byte
-
-	Encrypt(data []byte) []byte
-	Decrypt(data []byte) []byte
-}
-
 type TCPNetwork struct {
 	listener net.Listener
 
-	DialCM   *cm.ConnManager
-	AcceptCM *cm.ConnManager
+	NetCM *cm.ConnManager
 
-	nb NotifyApi // 在指定的行为中通知该服务端
+	/// 所有的callBack函数
+	// 创建用户DATA
+	CreateUserData func() interface{}
+
+	// 通知连接
+	OnAccept func(conn *TcpConn)
+	// 数据包进入
+	OnHandler func(conn *TcpConn, ownerPak *stream.BufferIO)
+	// 连接关闭
+	OnClose func(conn *TcpConn)
+	// 连接成功
+	OnConnected func(conn *TcpConn)
+
+	MainProc func() // 简易主处理函数
+
+	// 打包以及加密行为
+	Package func(val interface{}) []byte
+
+	Encrypt func(data []byte) []byte
+	Decrypt func(data []byte) []byte
 }
 
 /////////////////////////////
 // 创建网络服务器
-func NewTcpServer(addr string, papi NotifyApi) (tcp *TCPNetwork, err error) {
+func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 	tcp = &TCPNetwork{
 		listener: nil,
-		nb:       papi,
-		DialCM:   cm.NewCM(),
-		AcceptCM: cm.NewCM(),
+		NetCM:    cm.NewCM(),
+
+		CreateUserData: defaultCreateUserData,
+		Package:        nil,
+
+		OnAccept:    defaultOnAccept,
+		OnHandler:   defaultOnHandler,
+		OnClose:     defaultOnClose,
+		OnConnected: defaultOnConnected,
+
+		MainProc: defaultMainProc,
+
+		Encrypt: defaultEncrypt,
+		Decrypt: defaultDecrypt,
 	}
 
 	err = tcp.listen(addr)
@@ -59,15 +69,30 @@ func NewTcpServer(addr string, papi NotifyApi) (tcp *TCPNetwork, err error) {
 	return
 }
 
-////////////////////////////
-// 成员函数
-func (c *TCPNetwork) BindNotify(papi NotifyApi) {
-	c.nb = papi
+func NewEmptyTcp() *TCPNetwork {
+	return &TCPNetwork{
+		listener: nil,
+		NetCM:    cm.NewCM(),
+
+		CreateUserData: defaultCreateUserData,
+		Package:        nil,
+
+		OnAccept:    defaultOnAccept,
+		OnHandler:   defaultOnHandler,
+		OnClose:     defaultOnClose,
+		OnConnected: defaultOnConnected,
+
+		MainProc: defaultMainProc,
+
+		Encrypt: defaultEncrypt,
+		Decrypt: defaultDecrypt,
+	}
 }
 
+////////////////////////////
+// 成员函数
 func (c *TCPNetwork) RemoveSession(sessionId string) {
-	c.AcceptCM.Remove(sessionId)
-	c.DialCM.Remove(sessionId)
+	c.NetCM.Remove(sessionId)
 }
 
 func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err error) {
@@ -78,8 +103,8 @@ func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err
 		return
 	}
 
-	c.nb.OnConnected(conn)
-	c.DialCM.Register <- conn // 注册账户
+	c.OnConnected(conn)
+	c.NetCM.Register <- conn // 注册账户
 	return
 }
 
@@ -93,7 +118,7 @@ func (c *TCPNetwork) listen(bindAddr string) error {
 		return err
 	}
 
-	logger.INFO("listen On:%v", bindAddr)
+	logger.INFO("grapeNet listen On:[%v]", bindAddr)
 
 	c.listener = lis
 	go c.onAccept()
@@ -114,16 +139,16 @@ func (c *TCPNetwork) onAccept() {
 		}
 
 		logger.INFO("New Connection:%v，Accept.", conn.RemoteAddr())
-		var client = NewConn(c, conn, c.nb.CreateUserData())
+		var client = NewConn(c, conn, c.CreateUserData())
 
-		c.nb.OnAccept(client)
+		c.OnAccept(client)
 
-		c.AcceptCM.Register <- client // 注册一个全局对象
+		c.NetCM.Register <- client // 注册一个全局对象
 
 		client.startProc() // 启动线程
 	}
 }
 
 func (c *TCPNetwork) Runnable() {
-	c.nb.MainProc()
+	c.MainProc()
 }

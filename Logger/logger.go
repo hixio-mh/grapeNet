@@ -31,17 +31,14 @@ func BuildLogger(logDir, logFile string) {
 		<outputs formatid="main">  
 			<filter levels="info,warn">   
 				<console />    
-				<file path="%v" />
 				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />    
 			</filter>
 			<filter levels="critical,error">
 				<console />   
-				<file path="%v" />
 				<rollingfile type="size"  filename="%v" maxsize="102400" maxrolls="5" />   
 			</filter>
 			<filter levels="debug">
 				<console />   
-				<file path="%v" />
 				<rollingfile type="size" filename="%v" maxsize="102400" maxrolls="5" />   
 			</filter>
 		</outputs>

@@ -31,6 +31,8 @@ type ConnInterface interface {
 
 	InitData()
 
+	CType() int
+
 	RemoveData()
 
 	startProc()
@@ -48,6 +50,10 @@ type Conn struct {
 
 func (c *Conn) GetSessionId() string {
 	return c.SessionId
+}
+
+func (c *Conn) CType() int {
+	return c.Type
 }
 
 func (c *Conn) Send(data []byte) int {
@@ -181,5 +187,31 @@ func (c *ConnManager) BroadcastExcep(sessionId string, data []byte) {
 		}
 
 		v.Send(data)
+	}
+}
+
+func (c *ConnManager) BroadcastType(vtype int, data []byte) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for _, v := range c.sessions {
+		if vtype == v.CType() {
+			v.Send(data)
+		}
+	}
+}
+
+func (c *ConnManager) BroadcastTypeExcep(vtype int, sessionId string, data []byte) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for k, v := range c.sessions {
+		if k == sessionId {
+			continue
+		}
+
+		if vtype == v.CType() {
+			v.Send(data)
+		}
 	}
 }
