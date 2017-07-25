@@ -74,3 +74,16 @@ func (m *FuncMap) Call(cmd interface{}, args ...interface{}) error {
 	reflect.ValueOf(h).Call(in)
 	return nil
 }
+
+// 默认行为
+var defaultMap = NewMap()
+
+// 快速绑定
+func FastBind(cmd interface{}, fun MapHandler) error {
+	return defaultMap.Bind(cmd, fun)
+}
+
+// 快速调用
+func FastCall(cmd interface{}, args ...interface{}) error {
+	return defaultMap.Call(cmd, args)
+}
