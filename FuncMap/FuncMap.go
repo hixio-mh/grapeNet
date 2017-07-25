@@ -1,5 +1,5 @@
 // 自动泛型任意参数CALL
-// 中间会PANIC，依赖MARTINI的INJECT
+// 参考部分inject代码
 // version 1.0 beta
 // by koangel
 // email: jackliu100@gmail.com
@@ -9,10 +9,9 @@ package grapeFunc
 
 import (
 	"errors"
+	"fmt"
 	"reflect"
 	"sync"
-
-	"github.com/koangel/grapeNet/inject"
 )
 
 type MapHandler interface{}
@@ -29,7 +28,7 @@ func NewMap() *FuncMap {
 	}
 }
 
-func (m *FuncMap) Register(cmd interface{}, fun MapHandler) error {
+func (m *FuncMap) Bind(cmd interface{}, fun MapHandler) error {
 	m.locker.Lock()
 	defer m.locker.Unlock()
 
@@ -56,12 +55,22 @@ func (m *FuncMap) Call(cmd interface{}, args ...interface{}) error {
 		return errors.New("Unknow Handler")
 	}
 
-	inval := inject.New()
+	t := reflect.TypeOf(h)
 	argArr := []interface{}(args)
-	for _, v := range argArr {
-		inval.Map(v)
+
+	if len(argArr) < t.NumIn() {
+		return errors.New("Not enough arguments")
 	}
 
-	inval.Invoke(h)
+	var in = make([]reflect.Value, t.NumIn()) //Panic if t is not kind of Func
+	for i := 0; i < t.NumIn(); i++ {
+		argType := t.In(i)
+		if argType != reflect.TypeOf(argArr[i]) {
+			return errors.New(fmt.Sprintf("Value not found for type %v", argType))
+		}
+		in[i] = reflect.ValueOf(argArr[i]) // 完成一个基本的CALL
+	}
+
+	reflect.ValueOf(h).Call(in)
 	return nil
 }

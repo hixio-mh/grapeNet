@@ -3,3 +3,4 @@
 /Net/*.test
 /log
 Logger/debug.test
+FuncMap/debug.test
