@@ -17,6 +17,7 @@ import (
 var objmap map[string]reflect.Type = make(map[string]reflect.Type)
 var locker sync.Mutex
 
+// register auto
 func RA(val interface{}) {
 	t := reflect.TypeOf(val)
 
@@ -27,6 +28,7 @@ func RA(val interface{}) {
 	R(fmt.Sprintln(t), val)
 }
 
+// register
 func R(name string, val interface{}) {
 	locker.Lock()
 	defer locker.Unlock()
