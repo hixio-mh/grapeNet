@@ -55,13 +55,15 @@ func (m *FuncMap) Call(cmd interface{}, args ...interface{}) error {
 		return errors.New("Unknow Handler")
 	}
 
-	t := reflect.TypeOf(h)
+	t := reflect.TypeOf(h) // 获得对象类型
 	argArr := []interface{}(args)
 
+	// 数量和参数对不上
 	if len(argArr) < t.NumIn() {
 		return errors.New("Not enough arguments")
 	}
 
+	// 逐步压入参数
 	var in = make([]reflect.Value, t.NumIn()) //Panic if t is not kind of Func
 	for i := 0; i < t.NumIn(); i++ {
 		argType := t.In(i)
@@ -85,5 +87,5 @@ func FastBind(cmd interface{}, fun MapHandler) error {
 
 // 快速调用
 func FastCall(cmd interface{}, args ...interface{}) error {
-	return defaultMap.Call(cmd, args)
+	return defaultMap.Call(cmd, args...)
 }
