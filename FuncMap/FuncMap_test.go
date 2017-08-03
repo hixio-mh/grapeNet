@@ -42,3 +42,14 @@ func Benchmark_CallBM(t *testing.B) {
 		FastCall("ABC", uint32(i), "asdasd", "zxzxcasd")
 	}
 }
+
+func Benchmark_Parallel(b *testing.B) {
+	FastBind("ABC", vest3)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for i := 0; i < 500; i++ {
+				FastCall("ABC", uint32(i), "asdasd", "Zzxcaasd")
+			}
+		}
+	})
+}

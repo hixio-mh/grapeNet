@@ -19,7 +19,7 @@ type MapHandler interface{}
 type FuncMap struct {
 	hMap map[interface{}]MapHandler
 
-	locker sync.Mutex
+	locker sync.RWMutex
 }
 
 func NewMap() *FuncMap {
@@ -29,26 +29,25 @@ func NewMap() *FuncMap {
 }
 
 func (m *FuncMap) Bind(cmd interface{}, fun MapHandler) error {
-	m.locker.Lock()
-	defer m.locker.Unlock()
-
 	if reflect.TypeOf(fun).Kind() != reflect.Func {
 		return errors.New("handler must be a callable function")
 	}
 
+	m.locker.Lock()
 	_, ok := m.hMap[cmd]
 	if ok {
 		delete(m.hMap, cmd) // 删除旧的
 	}
 
 	m.hMap[cmd] = fun
+	m.locker.Unlock()
 
 	return nil
 }
 
 func (m *FuncMap) Call(cmd interface{}, args ...interface{}) error {
-	m.locker.Lock()
-	defer m.locker.Unlock()
+	m.locker.RLock()
+	defer m.locker.RUnlock()
 
 	h, ok := m.hMap[cmd]
 	if !ok {

@@ -71,3 +71,31 @@ func BenchmarkCodec(b *testing.B) {
 		//fmt.Println(obj)
 	}
 }
+
+func Benchmark_Parallel(b *testing.B) {
+	TempV := &VTObject{
+		Name: "asdasd",
+		VAO:  2000,
+		Data: "azxzxczxc",
+	}
+	v, verr := json.Marshal(TempV)
+	if verr != nil {
+		return
+	}
+
+	RA(VTObject{})
+	R("VTest", VTObject{})
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			obj, err := New("VTest")
+			if err != nil {
+				return
+			}
+
+			if err = json.Unmarshal(v, obj); err != nil {
+				return
+			}
+		}
+	})
+}
