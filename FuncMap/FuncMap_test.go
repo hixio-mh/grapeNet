@@ -10,7 +10,7 @@ func vestAbc(s string, i int) {
 }
 
 func vest3(i uint32, s string, data string) {
-	fmt.Println(i, s, data)
+	//fmt.Println(i, s, data)
 }
 
 func Test_MapCall(t *testing.T) {
@@ -27,4 +27,18 @@ func Test_MapCall(t *testing.T) {
 	FastCall("CCCC", uint32(2000), "asdasd", "zxxczxcxc")
 	FastCall(2.0, uint32(3000), "Call_Float", "zxxczxcxc")
 
+}
+
+func Benchmark_MapCall(t *testing.B) {
+	for i := 0; i < t.N; i++ {
+		FastBind(i, vest3)
+	}
+}
+
+func Benchmark_CallBM(t *testing.B) {
+	FastBind("ABC", vest3)
+
+	for i := 0; i < t.N; i++ {
+		FastCall("ABC", uint32(i), "asdasd", "zxzxcasd")
+	}
 }

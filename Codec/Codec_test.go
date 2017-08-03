@@ -42,3 +42,32 @@ func Test_Codec(t *testing.T) {
 
 	fmt.Println(obj)
 }
+
+func BenchmarkCodec(b *testing.B) {
+	TempV := &VTObject{
+		Name: "asdasd",
+		VAO:  2000,
+		Data: "azxzxczxc",
+	}
+	v, verr := json.Marshal(TempV)
+	if verr != nil {
+		return
+	}
+
+	RA(VTObject{})
+	R("VTest", VTObject{})
+
+	for i := 0; i < b.N; i++ {
+		obj, err := New("VTest")
+		if err != nil {
+			return
+		}
+
+		//fmt.Println(obj, reflect.TypeOf(obj))
+		if err = json.Unmarshal(v, obj); err != nil {
+			return
+		}
+
+		//fmt.Println(obj)
+	}
+}
