@@ -17,6 +17,9 @@ import (
 // 将TABLE数据反射到一个STRUCT中
 // 得到一个全局的结构
 func (vm *LuaVM) GetTable(gName string, val interface{}) error {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	rTable := vm.l.GetGlobal(gName)
 	if rTable.Type() != lua.LTTable {
 		return errors.New("Data Type Error...")

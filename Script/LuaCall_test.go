@@ -30,7 +30,7 @@ func Test_callTest(t *testing.T) {
 }
 
 func bindTestFn(s string, a int, f float32) {
-	fmt.Println(s, a, f)
+	//fmt.Println(s, a, f)
 }
 func Test_callRegister(t *testing.T) {
 	lua := NewVM("testRegister")
@@ -42,4 +42,51 @@ func Test_callRegister(t *testing.T) {
 		return
 	}
 	t.Log("call Finished...")
+}
+
+func Benchmark_Call(b *testing.B) {
+	lua := NewFromFile("testlua", "../_lua_tests/luascripts/call_lua_test.lua")
+	if lua == nil {
+		b.Error("unknow lua")
+		return
+	}
+
+	for i := 0; i < b.N; i++ {
+		err := lua.CallGlobal("TestAbc", "a", 2)
+		if err != nil {
+			b.Error(err)
+			return
+		}
+
+		// call ret
+		_, rerr := lua.CallGlobalRet("TestAbcRet", 20, 33)
+		if rerr != nil {
+			b.Error(rerr)
+			return
+		}
+	}
+}
+
+func Benchmark_CallParallel(b *testing.B) {
+	lua := NewFromFile("testlua", "../_lua_tests/luascripts/call_lua_test.lua")
+	if lua == nil {
+		b.Error("unknow lua")
+		return
+	}
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			err := lua.CallGlobal("TestAbc", "a", 2)
+			if err != nil {
+				b.Error(err)
+				return
+			}
+
+			// call ret
+			_, rerr := lua.CallGlobalRet("TestAbcRet", 20, 33)
+			if rerr != nil {
+				b.Error(rerr)
+				return
+			}
+		}
+	})
 }

@@ -10,6 +10,7 @@ package grapeLua
 import (
 	"errors"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/yuin/gopher-lua"
@@ -23,11 +24,17 @@ type LuaVM struct {
 	LuaData     string // 脚本数据
 
 	lastModTime time.Time
+
+	mux  sync.Mutex
+	once sync.Once
 }
 
 //////////////////////////////////
 // lua的执行函数
 func (vm *LuaVM) New(name string) {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l == nil {
 		vm.l = lua.NewState()
 		vm.ScriptName = name
@@ -37,6 +44,9 @@ func (vm *LuaVM) New(name string) {
 // 刷新脚本内容
 // 自动根据文件名以及文件的修改日期刷LUA文件
 func (vm *LuaVM) Update() {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if len(vm.LuaFileName) > 1 {
 		fi, err := os.Stat(vm.LuaFileName)
 		if err != nil {
@@ -54,6 +64,9 @@ func (vm *LuaVM) Update() {
 }
 
 func (vm *LuaVM) DoString(s string) error {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l != nil {
 		return vm.l.DoString(s)
 	}
@@ -62,6 +75,9 @@ func (vm *LuaVM) DoString(s string) error {
 }
 
 func (vm *LuaVM) DoFile(s string) error {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l != nil {
 		vm.LuaFileName = s
 		fi, err := os.Stat(s)
@@ -75,10 +91,15 @@ func (vm *LuaVM) DoFile(s string) error {
 }
 
 func (vm *LuaVM) Close() {
-	if vm.l != nil {
-		vm.l.Close()
-		vm.l = nil
-	}
+	vm.once.Do(func() {
+		vm.mux.Lock()
+		defer vm.mux.Unlock()
+
+		if vm.l != nil {
+			vm.l.Close()
+			vm.l = nil
+		}
+	})
 }
 
 func (vm *LuaVM) State() *lua.LState {

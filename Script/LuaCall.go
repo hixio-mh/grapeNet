@@ -20,6 +20,9 @@ import (
 // 可以绑定函数，类等
 // 本来打算自己写发现有库
 func (vm *LuaVM) SetGlobal(fnName string, fn interface{}) {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l == nil {
 		return
 	}
@@ -30,6 +33,9 @@ func (vm *LuaVM) SetGlobal(fnName string, fn interface{}) {
 ///////////////////////////////////////
 // 弱类型的调用指定的脚本函数
 func (vm *LuaVM) CallGlobal(fnName string, args ...interface{}) (err error) {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l == nil {
 		err = errors.New("lua state error...")
 		return
@@ -57,6 +63,9 @@ func (vm *LuaVM) CallGlobal(fnName string, args ...interface{}) (err error) {
 }
 
 func (vm *LuaVM) CallGlobalRet(fnName string, args ...interface{}) (r lua.LValue, err error) {
+	vm.mux.Lock()
+	defer vm.mux.Unlock()
+
 	if vm.l == nil {
 		err = errors.New("lua state error...")
 		return
