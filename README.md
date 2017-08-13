@@ -11,6 +11,14 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 
 慢慢更新中，很多坑要填，目前暂不适合用于商业项目。
 
+个人博客：http://grapec.me/
+
+## 安装
+
+```go
+go get -u github.com/koangel/grapeNet...
+```
+
 ## 模块表（Function）
 
 * Lua脚本绑定管理（可绑定任何类型的函数、线程安全且自动推倒类型）
