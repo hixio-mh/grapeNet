@@ -89,24 +89,48 @@ func INFO(fmt string, v ...interface{}) {
 	slog.Infof(fmt, v...)
 }
 
+func INFOV(v ...interface{}) {
+	slog.Info(v...)
+}
+
 func DEBUG(fmt string, v ...interface{}) {
 	slog.Debugf(fmt, v...)
+}
+
+func DEBUGV(v ...interface{}) {
+	slog.Debug(v...)
 }
 
 func CRT(fmt string, v ...interface{}) {
 	slog.Criticalf(fmt, v...)
 }
 
+func CRTV(v ...interface{}) {
+	slog.Critical(v...)
+}
+
 func WARN(fmt string, v ...interface{}) {
 	slog.Warnf(fmt, v...)
+}
+
+func WARNV(v ...interface{}) {
+	slog.Warn(v...)
 }
 
 func ERROR(fmt string, v ...interface{}) {
 	slog.Errorf(fmt, v...)
 }
 
+func ERRORV(v ...interface{}) {
+	slog.Error(v...)
+}
+
 func TRACE(fmt string, v ...interface{}) {
 	slog.Tracef(fmt, v...)
+}
+
+func TRACEV(v ...interface{}) {
+	slog.Trace(v...)
 }
 
 func FLUSH() {

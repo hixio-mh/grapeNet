@@ -1,3 +1,7 @@
+ [![Go Report Card](https://goreportcard.com/badge/github.com/koangel/grapeNet)](https://goreportcard.com/badge/github.com/koangel/grapeNet)
+ 
+---
+
 ## 简介（Introduction）
 
 Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network Framework)
