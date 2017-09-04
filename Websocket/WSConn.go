@@ -1,9 +1,10 @@
+package grapeWSNet
+
 // Websocket Conn
 // version 1.0 beta
 // by koangel
 // email: jackliu100@gmail.com
 // 2017/8/3
-package grapeWSNet
 
 import (
 	"context"
