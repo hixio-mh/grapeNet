@@ -35,7 +35,6 @@ func TestCSV_CustomTag(t *testing.T) {
 	sval := &testCsvNode{}
 	newCSV.GetRow(0, sval)
 	newCSV.CloseAll()
-	fmt.Println(sval)
 }
 
 func TestCSV_EmptyFile(t *testing.T) {
@@ -113,5 +112,4 @@ func TestCSV_ReadBenchmark(t *testing.T) {
 	sval := &testCsvNode{}
 	newCSV.GetRow(0, sval)
 	newCSV.CloseAll()
-	fmt.Println(sval)
 }

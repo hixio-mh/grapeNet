@@ -1,7 +1,6 @@
 package grapeStream
 
 import (
-	"fmt"
 	"testing"
 )
 
@@ -23,13 +22,11 @@ func Test_Resize(t *testing.T) {
 		pack.WriteAuto(allPacket)
 	}
 
-	newPack, err := pack.Packer(defaultFn)
+	_, err := pack.Packer(defaultFn)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	fmt.Println(newPack)
 }
 
 func Test_Unpack(t *testing.T) {
@@ -47,13 +44,11 @@ func Test_Unpack(t *testing.T) {
 
 	unPackSm := NewPacker()
 	unPackSm.WriteAuto(writeBytes) // 写进去
-	newUnpack, uerr := unPackSm.Unpack(true, defaultFn)
+	_, uerr := unPackSm.Unpack(true, defaultFn)
 	if uerr != nil {
 		t.Error(uerr)
 		return
 	}
-
-	fmt.Println(newUnpack)
 
 	t.Log("finished...")
 }
@@ -80,6 +75,4 @@ func Test_UnpackLine(t *testing.T) {
 
 		pakData = append(pakData, pData)
 	}
-
-	fmt.Println(pakData)
 }
