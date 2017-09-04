@@ -1,0 +1,29 @@
+sudo: false
+
+language: go
+
+go:
+  - 1.6.x
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - tip
+
+os:
+  - linux
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: tip
+
+before_install:
+  - go get -v github.com/cihub/seelog
+  - go get -v github.com/yuin/gopher-lua
+  - go get -v layeh.com/gopher-luar
+
+script:
+  - go test -v ./...
+
+notifications:
+  email: false

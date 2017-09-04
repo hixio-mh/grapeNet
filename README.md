@@ -1,5 +1,5 @@
- [![Go Report Card](https://goreportcard.com/badge/github.com/koangel/grapeNet)](https://goreportcard.com/badge/github.com/koangel/grapeNet)
- 
+ [![Go Report Card](https://goreportcard.com/badge/github.com/koangel/grapeNet)](https://goreportcard.com/badge/github.com/koangel/grapeNet)  [![Build Status](https://secure.travis-ci.org/bitly/grapeNet.png)](http://travis-ci.org/bitly/grapeNet)
+
 ---
 
 ## 简介（Introduction）
