@@ -3,11 +3,10 @@ sudo: false
 language: go
 
 go:
-  - 1.6.x
   - 1.7.x
   - 1.8.x
   - 1.9.x
-  - tip
+  - master
 
 os:
   - linux
@@ -21,6 +20,9 @@ before_install:
   - go get -v github.com/cihub/seelog
   - go get -v github.com/yuin/gopher-lua
   - go get -v layeh.com/gopher-luar
+  - go get -v github.com/koangel/grapeNet
+  - go get -v github.com/gorilla/websocket
+  - go get -v github.com/mitchellh/mapstructure
 
 script:
   - go test -v ./...
