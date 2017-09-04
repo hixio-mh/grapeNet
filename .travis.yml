@@ -20,7 +20,6 @@ before_install:
   - go get -v github.com/cihub/seelog
   - go get -v github.com/yuin/gopher-lua
   - go get -v layeh.com/gopher-luar
-  - go get -v github.com/koangel/grapeNet
   - go get -v github.com/gorilla/websocket
   - go get -v github.com/mitchellh/mapstructure
 
