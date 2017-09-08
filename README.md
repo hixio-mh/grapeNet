@@ -20,7 +20,7 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 ## 安装
 
 ```go
-go get -u github.com/koangel/grapeNet...
+go get -u github.com/koangel/grapeNet/...
 ```
 
 ## 模块表（Function）
