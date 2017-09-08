@@ -33,6 +33,7 @@ go get -u github.com/koangel/grapeNet/...
 * Websocket网络 （基础版）
 * Codec（任意类型注册对象并在其他位置动态创建该对象）
 * CSV序列化模块（通过Tag可以直接序列化到对象或对象序列化为CSV）
+* Sign生成库（自动将结构或map[string]interface{}排序后生成一个sign，可以自行设置KEY）
 
 ## 依赖第三方
 
