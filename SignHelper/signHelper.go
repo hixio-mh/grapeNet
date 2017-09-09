@@ -73,6 +73,7 @@ func Type2Map(t interface{}) (tmap map[string]interface{}, err error) {
 		}
 		if v.Kind() != reflect.Struct {
 			err = errors.New("reflect type must be struct or struct ptr...")
+			fmt.Println(err)
 			return
 		}
 
@@ -108,10 +109,31 @@ func Type2Map(t interface{}) (tmap map[string]interface{}, err error) {
 		}
 	} else {
 		err = errors.New("reflect type must be struct or struct ptr...")
+		fmt.Println(err)
 		return
 	}
 
 	return
+}
+
+func SignMD5NE(t interface{}) string {
+	sign, _ := KeySignMD5(t, SignKey)
+	return sign
+}
+
+func SignSha1NE(t interface{}) string {
+	sign, _ := KeySignSha1(t, SignKey)
+	return sign
+}
+
+func KeySignMD5NE(t interface{}, key string) string {
+	sign, _ := KeySignMD5(t, key)
+	return sign
+}
+
+func KeySignSha1NE(t interface{}, key string) string {
+	sign, _ := KeySignSha1(t, key)
+	return sign
 }
 
 func SignMD5(t interface{}) (sign string, err error) {

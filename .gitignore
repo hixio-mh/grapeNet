@@ -19,6 +19,7 @@
 Logger/debug.test
 FuncMap/debug.test
 Codec/debug.test
+SignHelper/debug.test
 
 /.idea
 _csv_tests/Benchmark001.csv
