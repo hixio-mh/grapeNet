@@ -30,6 +30,11 @@ var SignMergeTag string = "&" // join时用的数据，可以自行设置
 func SortMap2Str(tmap map[string]interface{}) string {
 	var keySort []string
 	for k, _ := range tmap {
+
+		if strings.ToLower(k) == "sign" {
+			continue // sign默认不打包
+		}
+
 		keySort = append(keySort, k)
 	}
 
@@ -94,6 +99,10 @@ func Type2Map(t interface{}) (tmap map[string]interface{}, err error) {
 
 			if sf.Tag.Get("b") == "-" {
 				continue // 特殊屏蔽
+			}
+
+			if strings.ToLower(sf.Name) == "sign" {
+				continue // 对于名称为sign的默认不做处理
 			}
 
 			keyName := sf.Tag.Get(SignTag)
