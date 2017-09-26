@@ -69,6 +69,10 @@ func Type2Map(t interface{}) (tmap map[string]interface{}, err error) {
 				continue
 			}
 
+			if vk.String() == "sign" {
+				continue
+			}
+
 			tmap[vk.String()] = v.MapIndex(vk).Interface()
 		}
 		return

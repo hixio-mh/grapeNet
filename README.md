@@ -34,12 +34,15 @@ go get -u github.com/koangel/grapeNet/...
 * Codec（任意类型注册对象并在其他位置动态创建该对象）
 * CSV序列化模块（通过Tag可以直接序列化到对象或对象序列化为CSV）
 * Sign生成库（自动将结构或map[string]interface{}排序后生成一个sign，可以自行设置KEY）
+* Etcd简易封装，针对Watcher做任意参数的监听callback(多Key监听)
 
 ## 依赖第三方
 
 * Seelog (github.com/cihub/seelog)
 * Gopher-lua(github.com/yuin/gopher-lua)
 * Gopher-luar(layeh.com/gopher-luar)
+* Etch ClientV3(github.com/coreos/etcd)
+* Bson (gopkg.in/mgo.v2/bson)
 
 不依赖任何CGO内容，lua本身也是纯GO实现。
 
@@ -207,6 +210,85 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 	// 根据结构自动设置头
 	newCSV.SetHeader(testCsvNode{})
 ```
+
+### ETCD简易封装模块（针对Watch的）
+
+一个针对etcd v3客户端的简易封装，封装的主要目的是为了简化Put和Get操作中的复杂内容，增加序列化和反序列的更多快速选项，减少代码。
+同时增加针对Watch行为的多Key监听，对于需要处理更多复杂参数有效隔离开，并针对Type等做处理（自动推导任意参数，但首参数必须为固定类型）。
+
+
+#### 连接
+
+``` go
+	import (
+		etcd "github.com/koangel/Etcd"
+	)
+
+
+	err := etcd.Dial([]string{"localhost:2379"})
+	if err != nil {
+		// do something
+		return
+	}
+```
+
+#### 读写任意对象
+
+可以通过函数 `SetFormatter` 来设定自己的格式化方法，四个函数都需要必须实现，内建格式json和bson
+> bson格式化自动转换为base64，所以必须实现`ToString`以及`FromString`，否则解析可能存在问题。
+
+> 默认不设置自动使用Json格式。
+
+```go
+ etcd.SetFormatter(&JsonFormatter{})
+```
+
+压入对象以及取出对象
+```go
+	err := MarshalKey("fooObj", map[string]interface{}{
+		"abcd":  "strings",
+		"int":   3000,
+		"float": 1.234,
+	})
+
+	if err != nil {
+		fmt.Print(err)
+		return
+	}
+
+	var uMap map[string]interface{} = map[string]interface{}{}
+	err = UnmarshalKey("fooObj", &uMap)
+	if err != nil {
+		fmt.Print(err)
+		return
+	}
+```
+
+#### 启用一个Watch监控
+
+callback必须声明
+第一个参数 vtype string 用于接收Watch类型
+第二个参数 values []byte 用于接收Watch时的Value，由于KEY在声明时已最齐，这里就先不传入了。
+
+```go
+
+func TestHandler(vtype string,values []byte,other01 int,other02 string,other03 float32) {
+	// do something
+}
+
+```
+
+快速建立一个监听
+
+```go
+err := etcd.BindWatcher("/fooWatch",TestHandler,1000,"other02_test",1.0)
+if err != nil {
+	fmt.Print(err)
+	return
+}
+```
+
+每当对`fooWatch`做出任何操作，底层自动call TestHandler。
 
 
 ### 其他模块
