@@ -245,7 +245,7 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 
 压入对象以及取出对象
 ```go
-	err := MarshalKey("fooObj", map[string]interface{}{
+	err := etcd.MarshalKey("fooObj", map[string]interface{}{
 		"abcd":  "strings",
 		"int":   3000,
 		"float": 1.234,
@@ -257,7 +257,7 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 	}
 
 	var uMap map[string]interface{} = map[string]interface{}{}
-	err = UnmarshalKey("fooObj", &uMap)
+	err = etcd.UnmarshalKey("fooObj", &uMap)
 	if err != nil {
 		fmt.Print(err)
 		return
@@ -267,8 +267,10 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 #### 启用一个Watch监控
 
 callback必须声明
-第一个参数 vtype string 用于接收Watch类型
-第二个参数 values []byte 用于接收Watch时的Value，由于KEY在声明时已最齐，这里就先不传入了。
+
+第一个参数 `vtype string` 用于接收Watch类型
+
+第二个参数 `values []byte` 用于接收Watch时的Value，由于KEY在声明时已最齐，这里就先不传入了。
 
 ```go
 
