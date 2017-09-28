@@ -45,7 +45,7 @@ func (w *EtcdWatcher) call(vtype string, value []byte) {
 		in = append(in, v)
 	}
 
-	reflect.ValueOf(w.caller).Call(in)
+	w.caller.Call(in)
 }
 
 // 跑着处理所有相关的watcher事宜
@@ -95,7 +95,7 @@ func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
 	}
 
 	chkType = t.In(1)
-	if chkType.Kind() != reflect.Array {
+	if chkType.Kind() != reflect.Slice {
 		return errors.New("Handler second argument must be a []byte")
 	}
 
