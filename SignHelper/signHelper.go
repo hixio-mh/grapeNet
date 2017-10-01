@@ -20,18 +20,22 @@ import (
 	"strings"
 )
 
-var IsUseKey bool = true      // 是否只使用数值组合生成 [key=value]
-var IsSort bool = true        // 是否对key做字母排序，默认开启排序，可不排序直接生成
-var SignKey string = ""       // 一个默认的KEY
-var SignTag string = "sign"   // 可以根据json或form等来生成sign,设置为 - 时代表不做任何生成行为
-var SignSplitTag string = "_" // 默认下划线分割
-var SignMergeTag string = "&" // join时用的数据，可以自行设置
+var (
+	IsUseKey     bool   = true   // 是否只使用数值组合生成 [key=value]
+	IsSort       bool   = true   // 是否对key做字母排序，默认开启排序，可不排序直接生成
+	SignKey      string = ""     // 一个默认的KEY
+	SignTag      string = "sign" // 可以根据json或form等来生成sign,设置为 - 时代表不做任何生成行为
+	SignSplitTag string = "_"    // 默认下划线分割
+	SignMergeTag string = "&"    // join时用的数据，可以自行设置
+	SignSkipKey  string = "sign"
+)
 
 func SortMap2Str(tmap map[string]interface{}) string {
 	var keySort []string
 	for k, _ := range tmap {
 
-		if strings.ToLower(k) == "sign" {
+		lowKey := strings.ToLower(k)
+		if lowKey == SignSkipKey {
 			continue // sign默认不打包
 		}
 
@@ -69,7 +73,7 @@ func Type2Map(t interface{}) (tmap map[string]interface{}, err error) {
 				continue
 			}
 
-			if vk.String() == "sign" {
+			if vk.String() == SignSkipKey {
 				continue
 			}
 
