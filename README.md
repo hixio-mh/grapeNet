@@ -41,7 +41,8 @@ go get -u github.com/koangel/grapeNet/...
 * Seelog (github.com/cihub/seelog)
 * Gopher-lua(github.com/yuin/gopher-lua)
 * Gopher-luar(layeh.com/gopher-luar)
-* Etch ClientV3(github.com/coreos/etcd)
+* Websocket (github.com/gorilla/websocket)
+* Etcd ClientV3(github.com/coreos/etcd)
 * Bson (gopkg.in/mgo.v2/bson)
 
 不依赖任何CGO内容，lua本身也是纯GO实现。
