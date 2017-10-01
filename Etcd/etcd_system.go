@@ -94,12 +94,32 @@ func Read(key string) (body []byte, err error) {
 		return
 	}
 
-	if len(resp.Kvs) <= 0 {
+	if resp.Count == 0 {
 		err = errors.New("keys is empty...")
 		return
 	}
 
 	body = resp.Kvs[0].Value
+	return
+}
+
+func ReadAll(key string) (body *clientv3.GetResponse, err error) {
+	body = nil
+	err = nil
+	ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
+	resp, verr := EtcdCli.Get(ctx, key)
+	cancel()
+	if verr != nil {
+		err = verr
+		return
+	}
+
+	body = resp
+	return
+}
+
+func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
+	resp, err = EtcdCli.Grant(context.Background(), ttl)
 	return
 }
 
@@ -115,6 +135,26 @@ func UnmarshalKey(key string, val interface{}) error {
 func Write(key string, val []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
 	_, err := EtcdCli.Put(ctx, key, string(val))
+	cancel()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func WriteTTL(key string, val []byte, ttl int64) error {
+	gresp, gerr := Grent(ttl)
+	if gerr != nil {
+		return gerr
+	}
+
+	return WriteGrent(key, val, gresp.ID)
+}
+
+func WriteGrent(key string, val []byte, Id clientv3.LeaseID) error {
+	ctx, cancel := context.WithTimeout(context.Background(), writeTimeout)
+	_, err := EtcdCli.Put(ctx, key, string(val), clientv3.WithLease(Id))
 	cancel()
 	if err != nil {
 		return err
