@@ -36,7 +36,7 @@ const (
 	writeTimeout = 5 * time.Second
 	readTimeout  = 5 * time.Second
 
-	watchMustArgs = 2
+	watchMustArgs = 3
 )
 
 func Dial(urls []string) error {

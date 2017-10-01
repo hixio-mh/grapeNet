@@ -36,10 +36,11 @@ func (w *EtcdWatcher) init(opts ...clientv3.OpOption) {
 }
 
 // 调用一开始绑定函数，处理这个事
-func (w *EtcdWatcher) call(vtype string, value []byte) {
+func (w *EtcdWatcher) call(vtype string, key, value []byte) {
 	var in []reflect.Value = make([]reflect.Value, watchMustArgs)
 	in[0] = reflect.ValueOf(vtype)
-	in[1] = reflect.ValueOf(value)
+	in[1] = reflect.ValueOf(key)
+	in[2] = reflect.ValueOf(value)
 
 	for _, v := range w.args {
 		in = append(in, v)
@@ -53,7 +54,7 @@ func (w *EtcdWatcher) watcher() {
 	for wch := range w.wchan {
 		for _, ev := range wch.Events {
 			// 处理他
-			w.call(ev.Type.String(), ev.Kv.Value)
+			w.call(ev.Type.String(), ev.Kv.Key, ev.Kv.Value)
 		}
 	}
 }
@@ -65,7 +66,8 @@ func (w *EtcdWatcher) Close() {
 ///////////////////////////////////////////////////////////////
 // watcher
 // watcher函数第一个参数必须是string,会自动传入type,否则无法绑定
-// watcher函数第二个参数必须是[]byte,会自动传入value,否则无法绑定
+// watcher函数第二个参数必须是[]byte,会自动传入key,否则无法绑定
+// watcher函数第三个个参数必须是[]byte,会自动传入value,否则无法绑定
 // watcher example:func TestCallback(type string,value []byte,testInt int,testFloat float32)
 func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
 
@@ -91,12 +93,17 @@ func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
 
 	chkType := t.In(0)
 	if chkType.Kind() != reflect.String {
-		return errors.New("Handler first argument must be a string")
+		return errors.New("Handler 1st argument must be a string")
 	}
 
 	chkType = t.In(1)
 	if chkType.Kind() != reflect.Slice {
-		return errors.New("Handler second argument must be a []byte")
+		return errors.New("Handler 2nd argument must be a []byte")
+	}
+
+	chkType = t.In(2)
+	if chkType.Kind() != reflect.Slice {
+		return errors.New("Handler 3rd argument must be a []byte")
 	}
 
 	// 解析全部参数
