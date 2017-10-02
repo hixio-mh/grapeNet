@@ -107,7 +107,7 @@ func ReadAll(key string) (body *clientv3.GetResponse, err error) {
 	body = nil
 	err = nil
 	ctx, cancel := context.WithTimeout(context.Background(), readTimeout)
-	resp, verr := EtcdCli.Get(ctx, key)
+	resp, verr := EtcdCli.Get(ctx, key, clientv3.WithPrefix())
 	cancel()
 	if verr != nil {
 		err = verr

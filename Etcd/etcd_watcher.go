@@ -63,14 +63,7 @@ func (w *EtcdWatcher) Close() {
 	w.cancel() // 关闭他
 }
 
-///////////////////////////////////////////////////////////////
-// watcher
-// watcher函数第一个参数必须是string,会自动传入type,否则无法绑定
-// watcher函数第二个参数必须是[]byte,会自动传入key,否则无法绑定
-// watcher函数第三个个参数必须是[]byte,会自动传入value,否则无法绑定
-// watcher example:func TestCallback(type string,value []byte,testInt int,testFloat float32)
-func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
-
+func BindWatcherPrefix(key string, isPrefix bool, wFunc EtcdHandler, args ...interface{}) error {
 	wMux.Lock()
 	_, ok := watchers[key]
 	wMux.Unlock()
@@ -122,13 +115,27 @@ func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
 		args:   in,
 	}
 
-	wc.init()
+	if isPrefix == false {
+		wc.init()
+	} else {
+		wc.init(clientv3.WithPrefix())
+	}
 
 	wMux.Lock()
 	watchers[key] = wc
 	wMux.Unlock()
 
 	return nil
+}
+
+///////////////////////////////////////////////////////////////
+// watcher
+// watcher函数第一个参数必须是string,会自动传入type,否则无法绑定
+// watcher函数第二个参数必须是[]byte,会自动传入key,否则无法绑定
+// watcher函数第三个个参数必须是[]byte,会自动传入value,否则无法绑定
+// watcher example:func TestCallback(type string,value []byte,testInt int,testFloat float32)
+func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
+	return BindWatcherPrefix(key, false, wFunc, args...)
 }
 
 func StopWatcher(key string) error {
