@@ -17,7 +17,8 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 
 个人博客：http://grapec.me/
 
-> 注意：由于ETCD V3 CLIENT不支持1.9以下版本的GO环境，所以ETCD库不在对1.8以上版本支持，TravisCI的BUILD状态也不支持1.9以下版本。
+> 注意：由于ETCD V3 CLIENT不支持1.9以下版本的GO环境，所以ETCD库不在对1.8以下版本支持，TravisCI的BUILD状态也不支持1.9以下版本。
+> 仅仅支持 Go 1.9以及以上版本。
 
 ## 安装
 

@@ -14,8 +14,7 @@ import (
 	"sync"
 )
 
-var objmap map[string]reflect.Type = make(map[string]reflect.Type)
-var locker sync.Mutex
+var objmap sync.Map
 
 // register auto
 func RA(val interface{}) {
@@ -25,29 +24,22 @@ func RA(val interface{}) {
 		t = t.Elem()
 	}
 
-	R(fmt.Sprintln(t), val)
+	R(fmt.Sprint(t), val)
 }
 
 // register
 func R(name string, val interface{}) {
-	locker.Lock()
-	defer locker.Unlock()
 
-	_, ok := objmap[name]
-	if ok {
-		delete(objmap, name)
-	}
-
-	objmap[name] = reflect.TypeOf(val)
+	// 目前对load or store的定义不详，暂时采用先Delete再store的形式
+	objmap.Delete(name)
+	objmap.Store(name, reflect.TypeOf(val))
 }
 
 func New(name string) (o interface{}, err error) {
-	locker.Lock()
-	defer locker.Unlock()
 	err = nil
 	o = nil
-	if v, ok := objmap[name]; ok {
-		o = reflect.New(v).Interface()
+	if v, ok := objmap.Load(name); ok {
+		o = reflect.New(v.(reflect.Type)).Interface()
 	} else {
 		err = errors.New("Unregister Codec Object...")
 	}

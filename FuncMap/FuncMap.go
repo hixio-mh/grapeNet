@@ -17,15 +17,11 @@ import (
 type MapHandler interface{}
 
 type FuncMap struct {
-	hMap map[interface{}]MapHandler
-
-	locker sync.RWMutex
+	hMap sync.Map
 }
 
 func NewMap() *FuncMap {
-	return &FuncMap{
-		hMap: make(map[interface{}]MapHandler),
-	}
+	return &FuncMap{}
 }
 
 func (m *FuncMap) Bind(cmd interface{}, fun MapHandler) error {
@@ -33,23 +29,13 @@ func (m *FuncMap) Bind(cmd interface{}, fun MapHandler) error {
 		return errors.New("handler must be a callable function")
 	}
 
-	m.locker.Lock()
-	_, ok := m.hMap[cmd]
-	if ok {
-		delete(m.hMap, cmd) // 删除旧的
-	}
-
-	m.hMap[cmd] = fun
-	m.locker.Unlock()
-
+	m.hMap.Delete(cmd)
+	m.hMap.Store(cmd, fun)
 	return nil
 }
 
 func (m *FuncMap) Call(cmd interface{}, args ...interface{}) error {
-	m.locker.RLock()
-	defer m.locker.RUnlock()
-
-	h, ok := m.hMap[cmd]
+	h, ok := m.hMap.Load(cmd)
 	if !ok {
 		return errors.New("Unknow Handler")
 	}
