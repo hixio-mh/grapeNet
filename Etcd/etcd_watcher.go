@@ -64,10 +64,7 @@ func (w *EtcdWatcher) Close() {
 }
 
 func BindWatcherPrefix(key string, isPrefix bool, wFunc EtcdHandler, args ...interface{}) error {
-	wMux.Lock()
-	_, ok := watchers[key]
-	wMux.Unlock()
-
+	_, ok := watchers.Load(key)
 	if ok {
 		return errors.New("Key already exists")
 	}
@@ -121,10 +118,7 @@ func BindWatcherPrefix(key string, isPrefix bool, wFunc EtcdHandler, args ...int
 		wc.init(clientv3.WithPrefix())
 	}
 
-	wMux.Lock()
-	watchers[key] = wc
-	wMux.Unlock()
-
+	watchers.Store(key, wc)
 	return nil
 }
 
@@ -139,15 +133,13 @@ func BindWatcher(key string, wFunc EtcdHandler, args ...interface{}) error {
 }
 
 func StopWatcher(key string) error {
-	wMux.Lock()
-	defer wMux.Unlock()
 
-	w, ok := watchers[key]
+	w, ok := watchers.Load(key)
 	if !ok {
 		return errors.New(fmt.Sprint("unknow Watcher:", key))
 	}
 
-	w.Close() // 先销毁他
-	delete(watchers, key)
+	w.(*EtcdWatcher).Close() // 先销毁他
+	watchers.Delete(key)
 	return nil
 }

@@ -19,8 +19,8 @@ var (
 	// 序列化和反序列化时的格式函数
 	formatter Formatter = &JsonFormatter{}
 	// 监听函数以及监听位置
-	watchers map[string]*EtcdWatcher = map[string]*EtcdWatcher{}
-	wMux     sync.Mutex
+	watchers sync.Map
+
 	// etcd内部客户端
 	EtcdCli *clientv3.Client = nil
 	// Close
