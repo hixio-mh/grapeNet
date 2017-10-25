@@ -39,6 +39,8 @@ const (
 	watchMustArgs = 3
 )
 
+type M = map[string]interface{}
+
 func Dial(urls []string) error {
 	return DialTimeout(urls, 45*time.Second)
 }
@@ -173,6 +175,20 @@ func MarshalKey(key string, val interface{}) error {
 	return Write(key, []byte(formatter.ToString(body)))
 }
 
+func MarshalKeyTTL(key string, val interface{}, ttl int64) (Id clientv3.LeaseID, err error) {
+	err = nil
+	Id = 0
+
+	body, ferr := formatter.Marshal(val)
+	if ferr != nil {
+		err = ferr
+		return
+	}
+
+	Id, err = WriteTTL(key, []byte(formatter.ToString(body)), ttl)
+	return
+}
+
 // 创建一个租约
 func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
 	resp, err = EtcdCli.Grant(context.Background(), ttl)
@@ -187,4 +203,9 @@ func Keeplive(Id clientv3.LeaseID) (<-chan *clientv3.LeaseKeepAliveResponse, err
 // 续约一次 本次只续约一次，过后依旧会删除
 func KeepliveOnce(Id clientv3.LeaseID) (*clientv3.LeaseKeepAliveResponse, error) {
 	return EtcdCli.KeepAliveOnce(context.Background(), Id)
+}
+
+// 强制取消租约
+func Revoke(Id clientv3.LeaseID) (*clientv3.LeaseRevokeResponse, error) {
+	return EtcdCli.Revoke(context.Background(),Id)
 }

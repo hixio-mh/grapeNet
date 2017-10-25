@@ -251,7 +251,7 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 
 压入对象以及取出对象
 ```go
-	err := etcd.MarshalKey("fooObj", map[string]interface{}{
+	err := etcd.MarshalKey("fooObj", etcd.M{
 		"abcd":  "strings",
 		"int":   3000,
 		"float": 1.234,
@@ -262,12 +262,39 @@ Lua库为线程安全库，可以在任意协程中并行调用脚本文件中�
 		return
 	}
 
-	var uMap map[string]interface{} = map[string]interface{}{}
+	var uMap etcd.M = etcd.M{}
 	err = etcd.UnmarshalKey("fooObj", &uMap)
 	if err != nil {
 		fmt.Print(err)
 		return
 	}
+```
+
+#### 租约与服务发现
+
+可以快速序列化一个租约键值，可用于服务发现或配置记录等行为，当然我基本用于服务发现。
+
+> 服务发现的一个简单例子
+
+```Go
+// 压入一个服务，并开启一个持续续约的系统，一旦过期主服务器认为服务已关闭
+ Id,err := etcd.MarshalKeyTTL(
+	 "game_server",etcd.M{
+		 "server":"127.0.0.1",
+	 },
+	 60)
+
+ if err != nil {
+	fmt.Print(err)
+	return
+ }
+
+ // 持续启动续约
+ etcd.Keeplive(Id)
+
+ // 强制过期
+ etcd.Revoke(Id)
+
 ```
 
 #### 启用一个Watch监控
