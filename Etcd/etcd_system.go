@@ -118,11 +118,6 @@ func ReadAll(key string) (body *clientv3.GetResponse, err error) {
 	return
 }
 
-func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
-	resp, err = EtcdCli.Grant(context.Background(), ttl)
-	return
-}
-
 func UnmarshalKey(key string, val interface{}) error {
 	resp, err := Read(key)
 	if err != nil {
@@ -143,13 +138,19 @@ func Write(key string, val []byte) error {
 	return nil
 }
 
-func WriteTTL(key string, val []byte, ttl int64) error {
+func WriteTTL(key string, val []byte, ttl int64) (Id clientv3.LeaseID, err error) {
+	Id = 0
+	err = nil
+
 	gresp, gerr := Grent(ttl)
 	if gerr != nil {
-		return gerr
+		err = gerr
+		return
 	}
 
-	return WriteGrent(key, val, gresp.ID)
+	Id = gresp.ID
+	err = WriteGrent(key, val, gresp.ID)
+	return
 }
 
 func WriteGrent(key string, val []byte, Id clientv3.LeaseID) error {
@@ -170,4 +171,20 @@ func MarshalKey(key string, val interface{}) error {
 	}
 
 	return Write(key, []byte(formatter.ToString(body)))
+}
+
+// 创建一个租约
+func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
+	resp, err = EtcdCli.Grant(context.Background(), ttl)
+	return
+}
+
+// 持续续约 会开启一个持续的携程去续约这个租约
+func Keeplive(Id clientv3.LeaseID) (<-chan *LeaseKeepAliveResponse, error) {
+	return EtcdCli.KeepAlive(context.Background(), Id)
+}
+
+// 续约一次 本次只续约一次，过后依旧会删除
+func KeepliveOnce(Id clientv3.LeaseID) (*LeaseKeepAliveResponse, error) {
+	return EtcdCli.KeepAliveOnce(context.Background(), Id)
 }
