@@ -180,11 +180,11 @@ func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
 }
 
 // 持续续约 会开启一个持续的携程去续约这个租约
-func Keeplive(Id clientv3.LeaseID) (<-chan *LeaseKeepAliveResponse, error) {
+func Keeplive(Id clientv3.LeaseID) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	return EtcdCli.KeepAlive(context.Background(), Id)
 }
 
 // 续约一次 本次只续约一次，过后依旧会删除
-func KeepliveOnce(Id clientv3.LeaseID) (*LeaseKeepAliveResponse, error) {
+func KeepliveOnce(Id clientv3.LeaseID) (*clientv3.LeaseKeepAliveResponse, error) {
 	return EtcdCli.KeepAliveOnce(context.Background(), Id)
 }
