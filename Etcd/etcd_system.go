@@ -209,3 +209,9 @@ func KeepliveOnce(Id clientv3.LeaseID) (*clientv3.LeaseKeepAliveResponse, error)
 func Revoke(Id clientv3.LeaseID) (*clientv3.LeaseRevokeResponse, error) {
 	return EtcdCli.Revoke(context.Background(),Id)
 }
+
+// 删除Key
+func Delete(key string,prefix bool) error {
+	_,err := EtcdCli.Delete(context.Background(),key,clientv3.WithPrefix())
+	return err
+}
