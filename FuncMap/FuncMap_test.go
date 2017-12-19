@@ -13,12 +13,18 @@ func vest3(i uint32, s string, data string) {
 	//fmt.Println(i, s, data)
 }
 
+func vest4Result(i uint32, s string, data string) (uint32, string) {
+	return i, s
+}
+
 func Test_MapCall(t *testing.T) {
 	FastBind("0", vestAbc)
 	FastBind(1, vestAbc)
 
 	FastBind(2.0, vest3)
 	FastBind("CCCC", vest3)
+
+	FastBind("0Result", vest4Result)
 
 	FastCall("0", "Call 0", 1233)
 	FastCall("0", "Call 0 Sc", 1233, "asdasd", 4444)
@@ -27,6 +33,14 @@ func Test_MapCall(t *testing.T) {
 	FastCall("CCCC", uint32(2000), "asdasd", "zxxczxcxc")
 	FastCall(2.0, uint32(3000), "Call_Float", "zxxczxcxc")
 
+	res, err := FastCallR("0Result", uint32(3000), "Call_Float", "zxxczxcxc")
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+		return
+	}
+
+	fmt.Println(res)
 }
 
 func Benchmark_MapCall(t *testing.B) {
