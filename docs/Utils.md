@@ -80,3 +80,44 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 ```
 
 还有详细用法可以参考convert_test.go，本库线程安全，且有benchmark，性能还不错！
+
+## Jobs轻并行任务类
+
+它很轻很轻，不适用于重度任务分布式计算，只用于比如单函数中需要大量计算，我把它拆成子函数，丢入jobs中，并行执行。
+
+例如，我需要同时取出玩家装备信息、战斗信息、宠物信息等，使用这个库同时发起请求并赋值某个结果合并发送。
+
+> 注意：非重度，长时间且需要拆分的任务，不要使用这个类，因为有大量反射耗时且ALLOC很多！在我机器平均完成单一任务执行需要 4147 ns/op & 11 allocs/op，我感觉好慢！
+> 你可以在你机器上跑跑benchmark
+
+### 基本用法
+
+```
+	jobs := &SyncJob{}
+
+	err := jobs.AppendR(func(a, rb string) string {
+		fmt.Println(a, "inter call")
+		return rb
+	}, func(r string) {
+		fmt.Println(r, "return")
+	}, "args1", "return")
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+		return
+	}
+
+	err = jobs.AppendR(func(a, rb string) string {
+		fmt.Println(a, "inter call 02")
+		return rb
+	}, func(r string) {
+		fmt.Println(r, "return 02")
+	}, "args2", "return2")
+	if err != nil {
+		fmt.Println(err)
+		t.Fail()
+		return
+	}
+
+	jobs.StartWait()
+```
