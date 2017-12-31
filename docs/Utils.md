@@ -121,3 +121,13 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 
 	jobs.StartWait()
 ```
+
+## []byte合并函数库
+
+一般用于大量[]byte类型用于协议传输时合并多个序列化后的[]byte，并可以将其拆开
+
+```
+	mergeBuf := MergeBinary([]byte("i am first words"), []byte("i am second words"))
+
+	splitBuf := SplitBinary(mergeBuf)
+```
