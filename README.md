@@ -8,7 +8,7 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 
 可用于游戏服务端、强网络服务器端或其他类似应用场景，每个模块单独提取并且拥有独立的使用方法，内部耦合性较轻。
 
-其实GO语言曾经有过很多强架构的框架，比如GOWOLRD之类的，已经足够了，但是我会将库用于各种轻量级应用不需要过于复杂的内容，所以我设计了GrapeNet，目的是模块独立化。
+其实GO语言曾经有过很多强架构的框架，比如GoWorld之类的，已经足够了，但是我会将库用于各种轻量级应用不需要过于复杂的内容，所以我设计了GrapeNet，目的是模块独立化。
 你可以拆开只使用其中很小的模块，也可以组合成一个服务端，并且在架构中设计也较为轻松，至于热更新的问题，目前脚本数据支持热更新，并且是自动的，只要跑一下UPDATE即可，程序本身稍后测试后发布（仅支持LINUX）。
 
 本库更像是一个日常服务端开发的轻量级工具库集合，用的开心噢。
@@ -65,6 +65,7 @@ go get -u github.com/koangel/grapeNet/...
 * [Etcd Doc](./docs/Etcd.md)
 * [Sign Doc](./docs/Sign.md)
 * [Utils Doc](./docs/Utils.md)
+* [Continer Doc](./docs/Continer.md)
 
 其他文档我会陆陆续续逐步完善并补充。
 
