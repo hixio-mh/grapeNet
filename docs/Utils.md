@@ -131,3 +131,24 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 
 	splitBuf := SplitBinary(mergeBuf)
 ```
+
+## 快速压缩通讯消息
+
+一般用于消息传输特别巨大例如超过300byte时需要压缩一下，精简之后传输，支持转换为base64或不转换，可以用于一些快速需要压缩的场景。
+
+> 注意：不要用于压缩巨大的文件或解压巨大的文件，可能导致的问题概不处理。
+
+```
+	// 压缩数据
+	gzip, err := FastGZipMsg(mergeBuf, true)
+	if err != nil {
+		return
+	}
+
+	// 解压缩数据
+	unzip, err := FastUnGZipMsg(gzip, true)
+	if err != nil {
+		return
+	}
+
+```
