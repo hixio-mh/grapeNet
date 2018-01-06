@@ -8,6 +8,7 @@ package grapeNet
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -16,6 +17,8 @@ import (
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
 	stream "github.com/koangel/grapeNet/Stream"
+
+	utils "github.com/koangel/grapeNet/Utils"
 )
 
 type TcpConn struct {
@@ -25,8 +28,6 @@ type TcpConn struct {
 	UserData interface{} // 用户对象
 	LastPing time.Time
 
-	mainStream stream.BufferIO
-
 	send    chan []byte
 	process chan *stream.BufferIO // 单独的一个数据包
 
@@ -34,29 +35,39 @@ type TcpConn struct {
 }
 
 const (
-	ReadWaitPing = 45 * time.Second
-	WriteTicker  = 45 * time.Second
+	ReadWaitPing = 60 * time.Second
+	WriteTicker  = 60 * time.Second
+
+	QueueCount = 2048
 )
 
 //////////////////////////////////////
 // 创建新连接
-func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
+
+func EmptyConn(ctype int) *TcpConn {
 	newConn := &TcpConn{
-		ownerNet: tn,
-		TConn:    conn,
-		UserData: UData,
 		LastPing: time.Now(),
 		IsClosed: 0,
 
-		send:    make(chan []byte, 1024),
-		process: make(chan *stream.BufferIO, 1024),
+		send:    make(chan []byte, QueueCount),
+		process: make(chan *stream.BufferIO, QueueCount),
 	}
 
 	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
 	newConn.Once = new(sync.Once)
 	newConn.Wg = new(sync.WaitGroup)
-	newConn.SessionId = cm.CreateUUID(1)
-	newConn.Type = cm.ESERVER_TYPE
+	newConn.SessionId = cm.CreateUUID(ctype)
+	newConn.Type = ctype
+
+	return newConn
+}
+
+func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
+	newConn := EmptyConn(cm.ESERVER_TYPE)
+
+	newConn.TConn = conn
+	newConn.ownerNet = tn
+	newConn.UserData = UData
 
 	return newConn
 }
@@ -64,29 +75,17 @@ func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
 func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err error) {
 	err = nil
 	conn = nil
-	dconn, derr := net.DialTimeout("tcp", addr, time.Second*300)
-	if err != nil {
-		logger.ERROR(err.Error())
+	dconn, derr := net.DialTimeout("tcp", addr, time.Second*30)
+	if derr != nil {
+		logger.ERRORV(derr)
 		err = derr
 		return
 	}
 
-	conn = &TcpConn{
-		ownerNet: tn,
-		UserData: UData,
-		LastPing: time.Now(),
-		IsClosed: 0,
-
-		send:    make(chan []byte, 1024),
-		process: make(chan *stream.BufferIO, 1024),
-	}
-
+	conn = EmptyConn(cm.ECLIENT_TYPE)
+	conn.ownerNet = tn
 	conn.TConn = dconn
-	conn.Ctx, conn.Cancel = context.WithCancel(context.Background())
-	conn.Once = new(sync.Once)
-	conn.Wg = new(sync.WaitGroup)
-	conn.SessionId = cm.CreateUUID(2)
-	conn.Type = cm.ECLIENT_TYPE
+	conn.UserData = UData
 
 	return
 }
@@ -101,16 +100,26 @@ func (c *TcpConn) startProc() {
 func (c *TcpConn) recvPump() {
 	defer func() {
 		if p := recover(); p != nil {
-			logger.ERROR("recover panics: %v", p)
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
 		}
 
 		c.Cancel() // 结束
 		c.Wg.Wait()
-		c.Close()                             // 关闭SOCKET
-		c.ownerNet.RemoveSession(c.SessionId) // 删除
+		c.Close() // 关闭SOCKET
+		if c.ownerNet != nil {
+			c.ownerNet.RemoveSession(c.SessionId) // 删除
+		}
+
 	}()
 
 	var buffer []byte = make([]byte, 65535)
+	var lStream stream.BufferIO
 
 	c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 
@@ -131,26 +140,37 @@ func (c *TcpConn) recvPump() {
 		}
 
 		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
-		c.mainStream.Write(buffer, rn)
+		lStream.Write(buffer, rn)
 
-		upak := c.ownerNet.Unpackage(c, &c.mainStream) // 调用解压行为
+		upak, _ := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
 		for _, v := range upak {
-			c.ownerNet.OnHandler(c, v)
+			if v[4] == 'h' && len(v) == 5 {
+				continue
+			}
+
+			c.ownerNet.OnHandler(c, v[4:])
 		}
 	}
 }
 
 func (c *TcpConn) writePump() {
 	c.Wg.Add(1)
-	ticker := time.NewTicker(WriteTicker)
 	defer func() {
 		if p := recover(); p != nil {
-			logger.ERROR("recover panics: %v", p)
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("writePump panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
 		}
 
 		c.Wg.Done()
 		logger.INFO("write Pump defer done!!!")
 	}()
+
+	heartbeat := time.NewTicker(30 * time.Second)
 
 	for {
 		select {
@@ -171,18 +191,15 @@ func (c *TcpConn) writePump() {
 				logger.ERROR("write Pump error:%v !!!", err)
 				return
 			}
-
 			break
-		case _, ok := <-ticker.C:
-			if !ok {
-				return
-			}
+		case <-heartbeat.C:
 			if atomic.LoadInt32(&c.IsClosed) == 1 {
 				return
 			}
+
+			c.Send([]byte("h")) // 发送心跳
 			break
 		}
-
 	}
 }
 
@@ -191,7 +208,10 @@ func (c *TcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode := c.ownerNet.Encrypt(data)
+	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt)
+	if err != nil {
+		return -1
+	}
 
 	select {
 	case c.send <- encode:
@@ -215,12 +235,21 @@ func (c *TcpConn) SendPak(val interface{}) int {
 		return -1
 	}
 
-	pack := c.ownerNet.Package(val)
+	pack, err := c.ownerNet.Package(val)
+	if err != nil {
+		return -1
+	}
+
 	return c.Send(pack)
 }
 
 func (c *TcpConn) Close() {
 	c.Once.Do(func() {
+		// 都没连上怎么关
+		if c.TConn == nil {
+			return
+		}
+
 		if atomic.LoadInt32(&c.IsClosed) == 0 {
 			atomic.StoreInt32(&c.IsClosed, 1)
 

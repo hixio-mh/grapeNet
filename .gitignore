@@ -22,3 +22,5 @@ Codec/debug.test
 SignHelper/debug.test
 
 /.idea
+samples/TcpNet/echo_client/debug
+samples/TcpNet/echo_server/debug

@@ -9,6 +9,7 @@ package grapeStream
 import (
 	"bytes"
 	"errors"
+	"fmt"
 )
 
 const (
@@ -70,6 +71,10 @@ func (b *BufferIO) EndOf() bool {
 
 // 可读取的剩余长度
 func (b *BufferIO) Available() int64 {
+	if b.writeIndex > int64(len(b.vBuffer)) {
+		return 0
+	}
+
 	return (b.writeIndex - b.readIndex)
 }
 
@@ -84,9 +89,9 @@ func (b *BufferIO) Resize(newSize int64) error {
 		return errors.New("NewSize is too short...")
 	}
 
-	tmpData := make([]byte, newSize)   // 保存构建一个新的BUFFER
-	copy(tmpData[:b.Len()], b.vBuffer) // copy旧的数据进
-	b.vBuffer = tmpData                // 新的缓冲区大小
+	tmpData := make([]byte, cap(b.vBuffer)*2+defaultSize) // 保存构建一个新的BUFFER
+	copy(tmpData, b.vBuffer)                              // copy旧的数据进
+	b.vBuffer = tmpData                                   // 新的缓冲区大小
 
 	return nil
 }
@@ -114,6 +119,12 @@ func (b *BufferIO) Shift(size int) error {
 	b.writeIndex -= int64(size)
 
 	return nil
+}
+
+func (b *BufferIO) Reset() {
+	b.writeIndex = 0
+	b.readIndex = 0
+	b.vBuffer = make([]byte, defaultSize*2)
 }
 
 // 相当于不去读取而是改变pos位置
@@ -155,6 +166,15 @@ func (b *BufferIO) PeekBytes(size int) []byte {
 	if int64(size) > b.Available() {
 		return []byte{}
 	}
+	if int64(size) > b.Available() {
+		return []byte{}
+	}
+
+	if int(b.readIndex+int64(size)) > len(b.vBuffer) {
+		fmt.Println(int(b.readIndex+int64(size)), int64(size), len(b.vBuffer), cap(b.vBuffer), b.Available(), b.readIndex, b.writeIndex)
+		return []byte{}
+	}
+
 	return b.vBuffer[b.readIndex : b.readIndex+int64(size)]
 }
 
@@ -250,7 +270,15 @@ func (b *BufferIO) Write(buf []byte, wlen int) int {
 		}
 	}
 
-	copy(b.vBuffer[b.writeIndex:endPos], buf)
+	if b.writeIndex > int64(len(b.vBuffer)) {
+		fmt.Println(len(b.vBuffer), cap(b.vBuffer), b.Available(), b.readIndex, b.writeIndex)
+		err := b.Resize(endPos + defaultSize) // 扩容
+		if err != nil {
+			return -1
+		}
+	}
+
+	copy(b.vBuffer[b.writeIndex:], buf)
 	b.writeIndex += int64(wlen)
 
 	return wlen
@@ -365,7 +393,7 @@ func (b *BufferIO) ChangeString(pos int, v string) {
 // 默认协议的首部4个字节为包长度，并返回一个仅有该数据内容的STREAM
 // |len 4byte|body or header|
 // Unpack后会自动shift
-func (b *BufferIO) Unpack(shift bool, fn CryptFn) (buf []byte, err error) {
+func (b *BufferIO) Unpack(fn CryptFn) (buf []byte, err error) {
 	buf = nil
 	err = errors.New("Pack Unready...")
 	if b.Available() < 4 {
@@ -384,15 +412,11 @@ func (b *BufferIO) Unpack(shift bool, fn CryptFn) (buf []byte, err error) {
 	copy(buf[4:], bPak)
 	err = nil
 
-	if shift {
-		b.Shift(int(4 + len)) // 跳过指定长度
-	}
-
 	return
 }
 
 // 解析以\n结尾的数据包并返回一个数据结构
-func (b *BufferIO) UnpackLine(shift bool, fn CryptFn) (buf []byte, err error) {
+func (b *BufferIO) UnpackLine(fn CryptFn) (buf []byte, err error) {
 	buf = nil
 	err = errors.New("Pack Unready...")
 	if b.Available() < 2 {
@@ -410,10 +434,6 @@ func (b *BufferIO) UnpackLine(shift bool, fn CryptFn) (buf []byte, err error) {
 	copy(buf, bPak[:ilen-1])
 	err = nil
 
-	if shift {
-		b.Shift(int(ilen)) // 跳过指定长度
-	}
-
 	return
 }
 
@@ -430,5 +450,11 @@ func (b *BufferIO) Packer(fn CryptFn) (buf []byte, err error) {
 	data := b.Slice(0, int(b.writeIndex))
 	buf = fn(data)
 	err = nil
+	return
+}
+
+func PackerOnce(in []byte, fn CryptFn) (buf []byte, err error) {
+	buffer := BuildPacker(in)
+	buf, err = buffer.Packer(fn)
 	return
 }

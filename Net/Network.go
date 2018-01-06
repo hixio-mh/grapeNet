@@ -35,8 +35,11 @@ type TCPNetwork struct {
 	MainProc func() // 简易主处理函数
 
 	// 打包以及加密行为
-	Package   func(val interface{}) []byte
-	Unpackage func(conn *TcpConn, spak *stream.BufferIO) [][]byte
+	Package   func(val interface{}) (data []byte, err error)
+	Unpackage func(conn *TcpConn, spak *stream.BufferIO) (data [][]byte, err error)
+
+	// 输出panic数据
+	Panic func(conn *TcpConn, src string)
 
 	Encrypt func(data []byte) []byte
 	Decrypt func(data []byte) []byte
@@ -50,8 +53,8 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 		NetCM:    cm.NewCM(),
 
 		CreateUserData: defaultCreateUserData,
-		Package:        nil,
-		Unpackage:      DefaultByteData,
+		Package:        defaultBytePacker, // bson转换或打包
+		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,
@@ -62,6 +65,8 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 
 		Encrypt: defaultEncrypt,
 		Decrypt: defaultDecrypt,
+
+		Panic: defaultPanic,
 	}
 
 	err = tcp.listen(addr)
@@ -77,8 +82,8 @@ func NewEmptyTcp() *TCPNetwork {
 		NetCM:    cm.NewCM(),
 
 		CreateUserData: defaultCreateUserData,
-		Package:        nil,
-		Unpackage:      DefaultByteData,
+		Package:        defaultBytePacker, // bson转换或打包
+		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
 		OnHandler:   defaultOnHandler,
@@ -89,6 +94,8 @@ func NewEmptyTcp() *TCPNetwork {
 
 		Encrypt: defaultEncrypt,
 		Decrypt: defaultDecrypt,
+
+		Panic: defaultPanic,
 	}
 }
 
@@ -108,6 +115,8 @@ func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err
 
 	c.OnConnected(conn)
 	c.NetCM.Register <- conn // 注册账户
+	conn.startProc()
+
 	return
 }
 
@@ -131,12 +140,15 @@ func (c *TCPNetwork) listen(bindAddr string) error {
 /// 连接池的处理
 func (c *TCPNetwork) onAccept() {
 	defer func() {
-
+		if p := recover(); p != nil {
+			logger.ERROR("recover panics: %v", p)
+		}
 	}()
 	// 1000次错误 跳出去
 	for failures := 0; failures < 1000; {
 		conn, listenErr := c.listener.Accept()
 		if listenErr != nil {
+			logger.ERROR("accept error:%v", listenErr)
 			failures++
 			continue
 		}
