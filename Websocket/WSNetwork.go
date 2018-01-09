@@ -8,10 +8,19 @@ package grapeWSNet
 import (
 	"net/http"
 
+	"fmt"
+
+	"net/http"
+
 	"github.com/gorilla/websocket"
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
 	stream "github.com/koangel/grapeNet/Stream"
+)
+
+const (
+	BinaryMsg = websocket.BinaryMessage
+	TextMsg   = websocket.TextMessage
 )
 
 type WSNetwork struct {
@@ -35,20 +44,61 @@ type WSNetwork struct {
 	// 连接成功
 	OnConnected func(conn *WSConn)
 
-	MainProc func() // 简易主处理函数
+	// 连接安全性检测 server only
+	OnUpgrade func(req *http.Request) bool
 
 	// 打包以及加密行为
-	Package   func(val interface{}) []byte
-	Unpackage func(conn *WSConn, spak *stream.BufferIO) [][]byte
+	Package   func(val interface{}) (data []byte, err error)
+	Unpackage func(conn *WSConn, spak *stream.BufferIO) (data [][]byte, err error)
+
+	// 输出panic数据
+	Panic func(conn *WSConn, src string)
 
 	Encrypt func(data []byte) []byte
 	Decrypt func(data []byte) []byte
 
 	HttpHome func(w http.ResponseWriter, r *http.Request)
+
+	MsgType int
 }
 
 //////////////////////////////////////
 // 新建函数
+func NetEmptyWS(Origin, wPath string) *WSNetwork {
+	NewWC := &WSNetwork{
+		NetCM:     cm.NewCM(),
+		Origin:    Origin,
+		wsPath:    wPath,
+		ChkOrigin: false,
+		upgrader: websocket.Upgrader{
+			ReadBufferSize:  40960,
+			WriteBufferSize: 40960,
+		},
+		CreateUserData: defaultCreateUserData,
+		Package:        defaultBytePacker,
+		Unpackage:      defaultByteData,
+
+		Panic: defaultPanic,
+
+		OnAccept:    defaultOnAccept,
+		OnHandler:   nil,
+		OnUpgrade:   nil,
+		OnClose:     defaultOnClose,
+		OnConnected: defaultOnConnected,
+
+		Encrypt: defaultEncrypt,
+		Decrypt: defaultDecrypt,
+
+		MsgType: BinaryMsg,
+	}
+
+	if len(Origin) > 0 {
+		NewWC.ChkOrigin = true
+	}
+
+	return NewWC
+}
+
 func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
 	NewWC := &WSNetwork{
 		address:   addr,
@@ -61,28 +111,25 @@ func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
 			WriteBufferSize: 40960,
 		},
 		CreateUserData: defaultCreateUserData,
-		Package:        nil,
-		Unpackage:      DefaultByteData,
+		Package:        defaultBytePacker,
+		Unpackage:      defaultByteData,
+
+		Panic: defaultPanic,
 
 		OnAccept:    defaultOnAccept,
-		OnHandler:   defaultOnHandler,
+		OnHandler:   nil,
+		OnUpgrade:   nil,
 		OnClose:     defaultOnClose,
 		OnConnected: defaultOnConnected,
 
-		MainProc: defaultMainProc,
-
 		Encrypt: defaultEncrypt,
 		Decrypt: defaultDecrypt,
+
+		MsgType: BinaryMsg,
 	}
 
 	if len(Origin) > 0 {
 		NewWC.ChkOrigin = true
-	}
-
-	err := NewWC.Listen()
-	if err != nil {
-		logger.ERROR("Listen WS Error:%v", err)
-		return nil
 	}
 
 	return NewWC
@@ -94,8 +141,36 @@ func (c *WSNetwork) RemoveSession(sessionId string) {
 	c.NetCM.Remove(sessionId)
 }
 
+func (c *WSNetwork) Dial(addr string) (conn *WSConn, err error) {
+	logger.INFO("Dial To :%v", addr)
+	conn, err = NewDial(c, addr, c.Origin, c.CreateUserData())
+	if err != nil {
+		logger.ERROR("Dial Faild:%v", err)
+		return
+	}
+
+	c.OnConnected(conn)
+	c.NetCM.Register <- conn // 注册账户
+	conn.startProc()
+
+	return
+}
+
+func (c *WSNetwork) Runnable() {
+	werr := c.listen()
+	if werr != nil {
+		logger.ERROR("Listen WS Error:%v", werr)
+		return
+	}
+
+}
+
 func (wn *WSNetwork) serveWs(w http.ResponseWriter, r *http.Request) {
 	wn.upgrader.CheckOrigin = func(rr *http.Request) bool {
+		if wn.ChkOrigin == false {
+			return true
+		}
+
 		lOrigin := rr.Header.Get("Origin")
 		if wn.ChkOrigin && lOrigin == wn.Origin {
 			return true
@@ -103,9 +178,16 @@ func (wn *WSNetwork) serveWs(w http.ResponseWriter, r *http.Request) {
 
 		return false
 	}
+
 	conn, err := wn.upgrader.Upgrade(w, r, nil) // 升级协议
 	if err != nil {
 		logger.ERROR(err.Error())
+		return
+	}
+
+	if wn.OnUpgrade != nil && wn.OnUpgrade(r) == false {
+		logger.ERROR("upgrade websocket faild...")
+		conn.Close() // 断开
 		return
 	}
 
@@ -120,7 +202,6 @@ func (wn *WSNetwork) serveWs(w http.ResponseWriter, r *http.Request) {
 	wn.NetCM.Register <- newCnc
 
 	newCnc.startProc()
-
 }
 
 func (wn *WSNetwork) defaultHome(w http.ResponseWriter, r *http.Request) {
@@ -129,11 +210,15 @@ func (wn *WSNetwork) defaultHome(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (wn *WSNetwork) Listen() error {
+func (wn *WSNetwork) listen() error {
+	if len(wn.address) == 0 {
+		return fmt.Errorf("listener is nil...")
+	}
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		wn.defaultHome(w, r)
 	})
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc(wn.wsPath, func(w http.ResponseWriter, r *http.Request) {
 		wn.serveWs(w, r)
 	})
 	logger.INFO("Server Start On:%v", wn.address)

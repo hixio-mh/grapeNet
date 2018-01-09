@@ -67,6 +67,7 @@ go get -u github.com/koangel/grapeNet/...
 * [Utils Doc](./docs/Utils.md)
 * [Continer Doc](./docs/Continer.md)
 * [TcpNet Doc](./docs/TcpNet.md)
+* [WSNet Doc](./docs/WSNet.md)
 
 其他文档我会陆陆续续逐步完善并补充。
 

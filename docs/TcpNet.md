@@ -72,3 +72,26 @@
 
 建立连接需要一个TcpNet，主要是因为需要自动使用其中的`连接管理器`，用于`broadcast`消息或快速查询`TcpConn`。
 
+### 发送数据包
+
+发送数据包一共有2种体系，一种是广播例如：
+
+```
+    // 广播字节码
+    wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msg:%v", i)))
+```
+
+还有一种就是单独针对CONN发送数据，例如：
+
+```
+    // 发送字节码，不简易但提供该函数
+    conn.Send([]byte("test"))
+
+    // 发送一个对象，会调用Callback Package函数
+    // 目前会转换成BSON对象的[]byte，可以自定义如何转换。
+    conn.SendPak(object{1,2,"test"})
+```
+
+### 接收数据
+
+只需要绑定WSNet中的Callback，OnHandler函数即可，会传入收到数据的Conn以及全部包内容，自行处理即可。

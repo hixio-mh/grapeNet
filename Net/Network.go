@@ -9,6 +9,8 @@ package grapeNet
 import (
 	"net"
 
+	"fmt"
+
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
 	stream "github.com/koangel/grapeNet/Stream"
@@ -57,7 +59,7 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
-		OnHandler:   defaultOnHandler,
+		OnHandler:   nil,
 		OnClose:     defaultOnClose,
 		OnConnected: defaultOnConnected,
 
@@ -86,7 +88,7 @@ func NewEmptyTcp() *TCPNetwork {
 		Unpackage:      defaultByteData,
 
 		OnAccept:    defaultOnAccept,
-		OnHandler:   defaultOnHandler,
+		OnHandler:   nil,
 		OnClose:     defaultOnClose,
 		OnConnected: defaultOnConnected,
 
@@ -122,7 +124,7 @@ func (c *TCPNetwork) Dial(addr string, UserData interface{}) (conn *TcpConn, err
 
 func (c *TCPNetwork) listen(bindAddr string) error {
 	if c.listener != nil {
-		return nil
+		return fmt.Errorf("listener is nil...")
 	}
 
 	lis, err := net.Listen("tcp", bindAddr)

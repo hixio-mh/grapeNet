@@ -9,6 +9,7 @@ package grapeWSNet
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -17,8 +18,7 @@ import (
 	ws "github.com/gorilla/websocket"
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
-
-	stream "github.com/koangel/grapeNet/Stream"
+	utils "github.com/koangel/grapeNet/Utils"
 )
 
 type WSConn struct {
@@ -29,17 +29,19 @@ type WSConn struct {
 	UserData interface{} // 用户对象
 	LastPing time.Time
 
-	mainStream stream.BufferIO
-
 	send    chan []byte
-	process chan *stream.BufferIO // 单独的一个数据包
+	process chan []byte // 单独的一个数据包
 
 	IsClosed int32
 }
 
 const (
 	ReadWaitPing = 45 * time.Second
-	WriteTicker  = 45 * time.Second
+	WriteTicker  = 60 * time.Second
+
+	pingTickTime = (ReadWaitPing * 9) / 10
+
+	queueCount = 2048
 )
 
 ///////////////////////////////////////////////
@@ -52,8 +54,8 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 
 		LastPing: time.Now(),
 
-		send:     make(chan []byte, 1024),
-		process:  make(chan *stream.BufferIO, 1024),
+		send:     make(chan []byte, queueCount),
+		process:  make(chan []byte, queueCount),
 		IsClosed: 0,
 	}
 
@@ -70,12 +72,12 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 	conn = nil
 	err = errors.New("unknow error.")
 	ws.DefaultDialer.HandshakeTimeout = 60 * time.Second
-	hHeader := http.Header{}
-	hHeader.Set("Origin", sOrigin)
-	hHeader.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36")
-	ws, _, derr := ws.DefaultDialer.Dial(addr, hHeader)
-	if err != nil {
-		logger.ERROR(err.Error())
+	wsHeader := http.Header{}
+	wsHeader.Set("Origin", sOrigin)
+	wsHeader.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36")
+	ws, _, derr := ws.DefaultDialer.Dial(fmt.Sprintf("ws://%v%v", addr, wn.wsPath), wsHeader)
+	if derr != nil {
+		logger.ERROR(derr.Error())
 		err = derr
 		return
 	}
@@ -87,8 +89,8 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 		LastPing: time.Now(),
 		IsClosed: 0,
 
-		send:    make(chan []byte, 1024),
-		process: make(chan *stream.BufferIO, 1024),
+		send:    make(chan []byte, queueCount),
+		process: make(chan []byte, queueCount),
 	}
 
 	err = nil
@@ -111,9 +113,16 @@ func (c *WSConn) startProc() {
 func (c *WSConn) recvPump() {
 	defer func() {
 		if p := recover(); p != nil {
-			logger.ERROR("recover panics: %v", p)
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
 		}
 
+		logger.INFO("recv Pump defer done!!!")
 		c.Cancel() // 结束
 		c.Wg.Wait()
 		c.Close()                             // 关闭SOCKET
@@ -122,16 +131,31 @@ func (c *WSConn) recvPump() {
 
 	c.WConn.SetReadLimit(65536)
 	c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+	c.WConn.SetPingHandler(func(string) error {
+		c.Send([]byte{0xf1, ws.PongMessage})
+		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		return nil
+	})
+	c.WConn.SetPongHandler(func(string) error { c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing)); return nil })
 
 	for {
 		wType, wmsg, err := c.WConn.ReadMessage()
 		if err != nil {
+			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
+				logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+				return
+			}
+
 			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
 			return
 		}
 
-		if wType != ws.BinaryMessage {
-			logger.ERROR("Session %v Recv Error Type Error:%v", c.SessionId, wType)
+		if wType == -1 {
+			continue // 不需要处理这是个错误或PING
+		}
+
+		if wType != c.ownerNet.MsgType {
+			logger.ERROR("Message Type Not Allowed:%v...", wType)
 			return
 		}
 
@@ -139,22 +163,24 @@ func (c *WSConn) recvPump() {
 			return
 		}
 
-		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
-		c.mainStream.WriteAuto(wmsg)
-
-		upak := c.ownerNet.Unpackage(c, &c.mainStream) // 调用解压行为
-		for _, v := range upak {
-			c.ownerNet.OnHandler(c, v)
+		if c.ownerNet.OnHandler != nil {
+			c.ownerNet.OnHandler(c, c.ownerNet.Decrypt(wmsg))
 		}
 	}
 }
 
 func (c *WSConn) writePump() {
 	c.Wg.Add(1)
-	ticker := time.NewTicker(WriteTicker)
+	ticker := time.NewTicker(pingTickTime)
 	defer func() {
 		if p := recover(); p != nil {
-			logger.ERROR("recover panics: %v", p)
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("writePump panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
 		}
 
 		c.Wg.Done()
@@ -165,9 +191,11 @@ func (c *WSConn) writePump() {
 		select {
 		case <-c.Ctx.Done():
 			logger.INFO("%v session write done...", c.SessionId)
+			c.WConn.WriteMessage(ws.CloseMessage, []byte{}) // 发消息关闭
 			return
 		case bData, ok := <-c.send:
 			if !ok {
+				c.WConn.WriteMessage(ws.CloseMessage, []byte{}) // 发消息关闭
 				return
 			}
 
@@ -175,10 +203,18 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(60 * time.Second))
-			if err := c.WConn.WriteMessage(ws.BinaryMessage, bData); err != nil {
-				logger.ERROR("write Pump error:%v !!!", err)
-				return
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+
+			if len(bData) == 2 && bData[0] == 0xf1 {
+				if err := c.WConn.WriteMessage(int(bData[1]), nil); err != nil {
+					logger.INFO("writePump ticker error,%v!!!", err)
+					return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
+				}
+			} else {
+				if err := c.WConn.WriteMessage(c.ownerNet.MsgType, bData); err != nil {
+					logger.ERROR("write Pump error:%v !!!", err)
+					return
+				}
 			}
 
 			break
@@ -190,8 +226,8 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(60 * time.Second))
-			if err := c.WConn.WriteMessage(ws.PingMessage, []byte{}); err != nil {
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+			if err := c.WConn.WriteMessage(ws.PingMessage, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
 			}
@@ -206,10 +242,8 @@ func (c *WSConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode := c.ownerNet.Encrypt(data)
-
 	select {
-	case c.send <- encode:
+	case c.send <- c.ownerNet.Encrypt(data):
 		return len(data)
 	case <-time.After(3 * time.Second):
 		break
@@ -230,12 +264,21 @@ func (c *WSConn) SendPak(val interface{}) int {
 		return -1
 	}
 
-	pack := c.ownerNet.Package(val)
+	pack, err := c.ownerNet.Package(val)
+	if err != nil {
+		logger.ERRORV(err)
+		return -1
+	}
+
 	return c.Send(pack)
 }
 
 func (c *WSConn) Close() {
 	c.Once.Do(func() {
+		if c.WConn == nil {
+			return
+		}
+
 		if atomic.LoadInt32(&c.IsClosed) == 0 {
 			atomic.StoreInt32(&c.IsClosed, 1)
 
@@ -248,6 +291,10 @@ func (c *WSConn) Close() {
 
 func (c *WSConn) RemoveData() {
 	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		c.WConn = nil
+
+		logger.INFO("cleanup data...")
+
 		close(c.send)
 		c.send = nil
 		close(c.process)

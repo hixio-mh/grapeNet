@@ -24,3 +24,5 @@ SignHelper/debug.test
 /.idea
 samples/TcpNet/echo_client/debug
 samples/TcpNet/echo_server/debug
+samples/WSNet/echo_client/debug
+samples/WSNet/echo_server/debug

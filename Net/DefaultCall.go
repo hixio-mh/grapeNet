@@ -24,10 +24,6 @@ func defaultOnAccept(conn *TcpConn) {
 	logger.INFO("Default Accept In:%v From:%v", conn.SessionId, conn.TConn.RemoteAddr().String())
 }
 
-func defaultOnHandler(conn *TcpConn, ownerPak []byte) {
-
-}
-
 func defaultOnClose(conn *TcpConn) {
 	if conn.TConn == nil {
 		return

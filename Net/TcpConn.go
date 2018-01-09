@@ -29,7 +29,7 @@ type TcpConn struct {
 	LastPing time.Time
 
 	send    chan []byte
-	process chan *stream.BufferIO // 单独的一个数据包
+	process chan []byte // 单独的一个数据包
 
 	IsClosed int32
 }
@@ -38,7 +38,7 @@ const (
 	ReadWaitPing = 60 * time.Second
 	WriteTicker  = 60 * time.Second
 
-	QueueCount = 2048
+	queueCount = 2048
 )
 
 //////////////////////////////////////
@@ -49,8 +49,8 @@ func EmptyConn(ctype int) *TcpConn {
 		LastPing: time.Now(),
 		IsClosed: 0,
 
-		send:    make(chan []byte, QueueCount),
-		process: make(chan *stream.BufferIO, QueueCount),
+		send:    make(chan []byte, queueCount),
+		process: make(chan []byte, queueCount),
 	}
 
 	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
@@ -139,6 +139,11 @@ func (c *TcpConn) recvPump() {
 			return
 		}
 
+		if c.ownerNet.OnHandler == nil {
+			logger.ERROR("Handler is Null,Closed...")
+			return
+		}
+
 		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		lStream.Write(buffer, rn)
 
@@ -154,6 +159,7 @@ func (c *TcpConn) recvPump() {
 }
 
 func (c *TcpConn) writePump() {
+	heartbeat := time.NewTicker(30 * time.Second)
 	c.Wg.Add(1)
 	defer func() {
 		if p := recover(); p != nil {
@@ -166,11 +172,10 @@ func (c *TcpConn) writePump() {
 			}
 		}
 
+		heartbeat.Stop()
 		c.Wg.Done()
 		logger.INFO("write Pump defer done!!!")
 	}()
-
-	heartbeat := time.NewTicker(30 * time.Second)
 
 	for {
 		select {
