@@ -10,8 +10,6 @@ import (
 
 	"fmt"
 
-	"net/http"
-
 	"github.com/gorilla/websocket"
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
