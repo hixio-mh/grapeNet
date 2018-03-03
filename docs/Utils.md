@@ -152,3 +152,32 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 	}
 
 ```
+
+## 快速启动一个Daemon
+
+仅适合非常简单的程序，大型程序请使用第三方，支持WINDOWS，基于`github.com/takama/daemon`
+
+由于github.com/takama/daemon版本的daemon在centos 7下无法正常安装运行，在提交issues无果的情况下只能自行修复，所以请使用github.com/koangel/daemon
+该库大部分代码源自于github.com/takama/daemon，版权归原作者所有，本人仅仅修复部分BUG。
+
+```
+func RunMain() string {
+
+	// to do something
+
+	return "return error message"
+}
+
+func main() {
+	util.RunDaemon("service_name","service_desc",RunMain) // 启动服务
+}
+```
+
+然后丢程序上服务器，直接参数
+
+* simple_daemon install [安装服务]
+* simple_daemon start [启动服务]
+* simple_daemon stop [停止服务]
+* simple_daemon restart [重启服务]
+* simple_daemon status [服务器状态]
+

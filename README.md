@@ -41,7 +41,7 @@ go get -u github.com/koangel/grapeNet/...
 * Sign生成库（自动将结构或map[string]interface{}排序后生成一个sign，可以自行设置KEY）
 * Etcd简易封装，针对Watcher做任意参数的监听callback(多Key监听)
 * Continers容器库，游戏用背包容器、带有锁的并行LIST等
-* Utils多种简易辅助库的集合（三元运算符、数值转换、轻并行执行库）
+* Utils多种简易辅助库的集合（三元运算符、数值转换、轻并行执行库、启动Daemon）
 
 ## 依赖第三方
 
@@ -51,6 +51,7 @@ go get -u github.com/koangel/grapeNet/...
 * Websocket (github.com/gorilla/websocket)
 * Etcd ClientV3(github.com/coreos/etcd)
 * Bson (gopkg.in/mgo.v2/bson)
+* Daemon (github.com/koangel/daemon [fork from github.com/takama/daemon])
 
 不依赖任何CGO内容，lua本身也是纯GO实现。
 
