@@ -169,15 +169,21 @@ func RunMain() string {
 }
 
 func main() {
-	util.RunDaemon("service_name","service_desc",RunMain) // 启动服务
+	// 参数 服务名称，服务介绍，工作目录（为空则使用程序当前目录），主执行函数
+	util.RunDaemon("service_name","service_desc","",RunMain) // 启动服务
 }
 ```
 
 然后丢程序上服务器，直接参数
 
-* simple_daemon install [安装服务]
-* simple_daemon start [启动服务]
-* simple_daemon stop [停止服务]
-* simple_daemon restart [重启服务]
-* simple_daemon status [服务器状态]
+* simple_daemon install [可选参数] : 安装服务
+* simple_daemon start : 启动服务
+* simple_daemon stop : 停止服务
+* simple_daemon restart : 重启服务
+* simple_daemon status : 服务器状态
+* simple_daemon remove : 删除服务
 
+exmple: simple_daemon install -d abc -c ddd
+
+windows上依赖：nssm [http://nssm.cc/] 
+linux上的执行顺序是：systemd -> initctrl -> systemv(rc[num].d) ，目前已知工作目录存在BUG，所以目前的解决方案是，启动时指定参数是否使用当前目录运行。

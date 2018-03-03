@@ -10,10 +10,13 @@ package Utils
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
+	"path/filepath"
+	"strings"
 	"syscall"
 
-	"github.com/takama/daemon"
+	"github.com/koangel/daemon"
 )
 
 type DaemonHandler func() string
@@ -21,7 +24,17 @@ type DaemonHandler func() string
 var (
 	sd    daemon.Daemon
 	usage string
+
+	workRoot string = ""
 )
+
+func getCurrPath() string {
+	file, _ := exec.LookPath(os.Args[0])
+	path, _ := filepath.Abs(file)
+	index := strings.LastIndex(path, string(os.PathSeparator))
+	ret := path[:index]
+	return ret
+}
 
 func serviceRun(handler DaemonHandler) (string, error) {
 
@@ -29,6 +42,9 @@ func serviceRun(handler DaemonHandler) (string, error) {
 		command := os.Args[1]
 		switch command {
 		case "install":
+			if len(os.Args) > 2 {
+				return sd.Install(os.Args[2:]...) // 附加参数
+			}
 			return sd.Install()
 		case "remove":
 			return sd.Remove()
@@ -38,9 +54,19 @@ func serviceRun(handler DaemonHandler) (string, error) {
 			return sd.Stop()
 		case "status":
 			return sd.Status()
+		case "restart":
+			return sd.Restart()
 		default:
 			return usage, nil
 		}
+	}
+
+	// 设置工作目录
+	if workRoot == "" {
+		// 使用当前程序目录
+		os.Chdir(getCurrPath())
+	} else {
+		os.Chdir(workRoot)
 	}
 
 	interrupt := make(chan os.Signal, 1)
@@ -49,7 +75,7 @@ func serviceRun(handler DaemonHandler) (string, error) {
 	return handler(), nil
 }
 
-func RunDaemon(name string, desc string, handler DaemonHandler) error {
+func RunDaemon(name string, desc string, sWork string, handler DaemonHandler) error {
 	srv, err := daemon.New(name, desc, []string{fmt.Sprintf("%v.service", name)}...)
 	if err != nil {
 		return err
@@ -57,6 +83,7 @@ func RunDaemon(name string, desc string, handler DaemonHandler) error {
 
 	usage = fmt.Sprintf("Usage: %v install | remove | start | stop | status", name)
 	sd = srv
+	workRoot = sWork
 
 	show, serr := serviceRun(handler)
 	fmt.Println(show)
