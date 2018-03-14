@@ -32,6 +32,8 @@ type WSConn struct {
 	send    chan []byte
 	process chan []byte // 单独的一个数据包
 
+	CryptKey []byte
+
 	IsClosed int32
 }
 
@@ -51,6 +53,7 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 		ownerNet: wn,
 		WConn:    Conn,
 		UserData: UData,
+		CryptKey: []byte{},
 
 		LastPing: time.Now(),
 
@@ -88,6 +91,8 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 		WConn:    ws,
 		LastPing: time.Now(),
 		IsClosed: 0,
+
+		CryptKey: []byte("e63b58801d951ff2435d0a6242a44b6e34062233"),
 
 		send:    make(chan []byte, queueCount),
 		process: make(chan []byte, queueCount),
@@ -164,7 +169,7 @@ func (c *WSConn) recvPump() {
 		}
 
 		if c.ownerNet.OnHandler != nil {
-			c.ownerNet.OnHandler(c, c.ownerNet.Decrypt(wmsg))
+			c.ownerNet.OnHandler(c, c.ownerNet.Decrypt(wmsg, c.CryptKey))
 		}
 	}
 }
@@ -243,7 +248,7 @@ func (c *WSConn) Send(data []byte) int {
 	}
 
 	select {
-	case c.send <- c.ownerNet.Encrypt(data):
+	case c.send <- c.ownerNet.Encrypt(data, c.CryptKey):
 		return len(data)
 	case <-time.After(3 * time.Second):
 		break

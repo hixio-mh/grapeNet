@@ -31,6 +31,8 @@ type TcpConn struct {
 	send    chan []byte
 	process chan []byte // 单独的一个数据包
 
+	CryptKey []byte
+
 	IsClosed int32
 }
 
@@ -48,6 +50,8 @@ func EmptyConn(ctype int) *TcpConn {
 	newConn := &TcpConn{
 		LastPing: time.Now(),
 		IsClosed: 0,
+
+		CryptKey: []byte{},
 
 		send:    make(chan []byte, queueCount),
 		process: make(chan []byte, queueCount),
@@ -213,7 +217,7 @@ func (c *TcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt)
+	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
 	if err != nil {
 		return -1
 	}

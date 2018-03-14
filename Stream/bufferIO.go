@@ -23,7 +23,7 @@ type BufferIO struct {
 	writeIndex int64 // 写入长度
 }
 
-type CryptFn func(val []byte) []byte
+type CryptFn func(val, key []byte) []byte
 
 ////////////////////////////////////////////////////////
 // 新建一个Stream
@@ -393,7 +393,7 @@ func (b *BufferIO) ChangeString(pos int, v string) {
 // 默认协议的首部4个字节为包长度，并返回一个仅有该数据内容的STREAM
 // |len 4byte|body or header|
 // Unpack后会自动shift
-func (b *BufferIO) Unpack(fn CryptFn) (buf []byte, err error) {
+func (b *BufferIO) Unpack(fn CryptFn, key []byte) (buf []byte, err error) {
 	buf = nil
 	err = errors.New("Pack Unready...")
 	if b.Available() < 4 {
@@ -405,8 +405,8 @@ func (b *BufferIO) Unpack(fn CryptFn) (buf []byte, err error) {
 		return // 包还没准备好
 	}
 
-	b.Skip(4)                        // 跳过数据包长度
-	bPak := fn(b.GetBytes(int(len))) // 读取body长度
+	b.Skip(4)                             // 跳过数据包长度
+	bPak := fn(b.GetBytes(int(len)), key) // 读取body长度
 	buf = make([]byte, (len + 4))
 	copy(buf[:4], U32TBytes(uint32(len)))
 	copy(buf[4:], bPak)
@@ -416,7 +416,7 @@ func (b *BufferIO) Unpack(fn CryptFn) (buf []byte, err error) {
 }
 
 // 解析以\n结尾的数据包并返回一个数据结构
-func (b *BufferIO) UnpackLine(fn CryptFn) (buf []byte, err error) {
+func (b *BufferIO) UnpackLine(fn CryptFn, key []byte) (buf []byte, err error) {
 	buf = nil
 	err = errors.New("Pack Unready...")
 	if b.Available() < 2 {
@@ -439,7 +439,7 @@ func (b *BufferIO) UnpackLine(fn CryptFn) (buf []byte, err error) {
 
 // 通用打包体系
 // |len 4byte|body or header|
-func (b *BufferIO) Packer(fn CryptFn) (buf []byte, err error) {
+func (b *BufferIO) Packer(fn CryptFn, key []byte) (buf []byte, err error) {
 	buf = b.Bytes()
 	err = errors.New("No Data Need Package...")
 	if b.writeIndex < 4 {
@@ -448,13 +448,18 @@ func (b *BufferIO) Packer(fn CryptFn) (buf []byte, err error) {
 
 	b.ChangeUInt32(0, uint32(b.writeIndex-4)) // 改变长
 	data := b.Slice(0, int(b.writeIndex))
-	buf = fn(data)
+	unPak := fn(data[4:], key)
+
+	// 修复加密错位
+	buf = make([]byte, b.writeIndex)
+	copy(buf[:4], data[:4])
+	copy(buf[4:], unPak)
 	err = nil
 	return
 }
 
-func PackerOnce(in []byte, fn CryptFn) (buf []byte, err error) {
+func PackerOnce(in []byte, fn CryptFn, key []byte) (buf []byte, err error) {
 	buffer := BuildPacker(in)
-	buf, err = buffer.Packer(fn)
+	buf, err = buffer.Packer(fn, key)
 	return
 }

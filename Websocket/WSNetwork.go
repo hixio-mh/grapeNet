@@ -52,8 +52,8 @@ type WSNetwork struct {
 	// 输出panic数据
 	Panic func(conn *WSConn, src string)
 
-	Encrypt func(data []byte) []byte
-	Decrypt func(data []byte) []byte
+	Encrypt func(data, key []byte) []byte
+	Decrypt func(data, key []byte) []byte
 
 	HttpHome func(w http.ResponseWriter, r *http.Request)
 

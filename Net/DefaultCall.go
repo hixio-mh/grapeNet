@@ -44,10 +44,10 @@ func defaultMainProc() {
 }
 
 // 打包以及加密行为
-func defaultEncrypt(data []byte) []byte {
+func defaultEncrypt(data, key []byte) []byte {
 	return data
 }
-func defaultDecrypt(data []byte) []byte {
+func defaultDecrypt(data, key []byte) []byte {
 	return data
 }
 
@@ -75,7 +75,7 @@ func defaultByteData(conn *TcpConn, spak *stream.BufferIO) (data [][]byte, err e
 	total := int(0)
 
 	for {
-		pData, uerr := spak.Unpack(conn.ownerNet.Decrypt)
+		pData, uerr := spak.Unpack(conn.ownerNet.Decrypt, conn.CryptKey)
 		if uerr != nil {
 			err = uerr
 			break
@@ -98,7 +98,7 @@ func defaultLineData(conn *TcpConn, spak *stream.BufferIO) (data [][]byte, err e
 	data = [][]byte{}
 
 	for {
-		pData, uerr := spak.UnpackLine(conn.ownerNet.Decrypt)
+		pData, uerr := spak.UnpackLine(conn.ownerNet.Decrypt, conn.CryptKey)
 		if uerr != nil {
 			err = uerr
 			break
