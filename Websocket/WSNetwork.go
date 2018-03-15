@@ -169,6 +169,11 @@ func (wn *WSNetwork) serveWs(w http.ResponseWriter, r *http.Request) {
 			return true
 		}
 
+		if wn.OnUpgrade != nil && wn.OnUpgrade(r) == false {
+			logger.ERROR("upgrade websocket faild...")
+			return false
+		}
+
 		lOrigin := rr.Header.Get("Origin")
 		if wn.ChkOrigin && lOrigin == wn.Origin {
 			return true
@@ -180,12 +185,6 @@ func (wn *WSNetwork) serveWs(w http.ResponseWriter, r *http.Request) {
 	conn, err := wn.upgrader.Upgrade(w, r, nil) // 升级协议
 	if err != nil {
 		logger.ERROR(err.Error())
-		return
-	}
-
-	if wn.OnUpgrade != nil && wn.OnUpgrade(r) == false {
-		logger.ERROR("upgrade websocket faild...")
-		conn.Close() // 断开
 		return
 	}
 
