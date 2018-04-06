@@ -168,6 +168,8 @@ func (c *WSConn) recvPump() {
 			return
 		}
 
+		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+
 		if c.ownerNet.OnHandler != nil {
 			c.ownerNet.OnHandler(c, c.ownerNet.Decrypt(wmsg, c.CryptKey))
 		}
