@@ -7,19 +7,20 @@
 package Utils
 
 import (
-	"container/list"
 	"sync"
+
+	qv1 "gopkg.in/eapache/queue.v1"
 )
 
 type SyncQueue struct {
 	cond   *sync.Cond
-	l      *list.List
+	l      *qv1.Queue
 	locker sync.Mutex
 }
 
 func NewSQueue() *SyncQueue {
 	q := &SyncQueue{
-		l: list.New(),
+		l: qv1.New(),
 	}
 
 	q.cond = sync.NewCond(&q.locker)
@@ -30,7 +31,7 @@ func (q *SyncQueue) Push(value interface{}) {
 	q.locker.Lock()
 	defer q.locker.Unlock()
 
-	q.l.PushBack(value)
+	q.l.Add(value)
 	q.cond.Signal()
 }
 
@@ -39,11 +40,11 @@ func (q *SyncQueue) Pop() (val interface{}) {
 	defer q.locker.Unlock()
 
 	// WAIT内部会有锁释放，所以这里不会造成死锁，当队列为空时，进行等待唤醒
-	for q.l.Len() <= 0 {
+	for q.l.Length() <= 0 {
 		q.cond.Wait()
 	}
 
-	val = q.l.Remove(q.l.Front())
+	val = q.l.Remove()
 
 	return
 }
