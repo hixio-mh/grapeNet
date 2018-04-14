@@ -33,8 +33,8 @@ var (
 )
 
 const (
-	writeTimeout = 5 * time.Second
-	readTimeout  = 5 * time.Second
+	writeTimeout = 45 * time.Second
+	readTimeout  = 60 * time.Second
 
 	watchMustArgs = 3
 )
