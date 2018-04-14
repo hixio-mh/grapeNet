@@ -48,8 +48,10 @@ func Dial(urls []string) error {
 func DialTimeout(urls []string, timeout time.Duration) error {
 
 	config := clientv3.Config{
-		Endpoints:   urls,
-		DialTimeout: timeout,
+		Endpoints:          urls,
+		DialTimeout:        timeout,
+		MaxCallSendMsgSize: 16 * 1024 * 1024,
+		MaxCallRecvMsgSize: 512 * 1024 * 1024,
 	}
 
 	// 开启验证
