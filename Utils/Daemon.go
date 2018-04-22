@@ -19,7 +19,7 @@ import (
 	"github.com/takama/daemon"
 )
 
-type DaemonHandler func() string
+type DaemonHandler func(signal chan os.Signal) string
 
 var (
 	sd    daemon.Daemon
@@ -77,7 +77,7 @@ func serviceRun(handler DaemonHandler) (string, error) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGTERM)
 
-	return handler(), nil
+	return handler(interrupt), nil
 }
 
 func RunDaemon(name string, desc string, sWork string, handler DaemonHandler) error {
