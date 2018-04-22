@@ -51,7 +51,7 @@ go get -u github.com/koangel/grapeNet/...
 * Websocket (github.com/gorilla/websocket)
 * Etcd ClientV3(github.com/coreos/etcd)
 * Bson (gopkg.in/mgo.v2/bson)
-* Daemon (github.com/koangel/daemon [fork from github.com/takama/daemon])
+* Daemon (github.com/takama/daemon)
 
 不依赖任何CGO内容，lua本身也是纯GO实现。
 

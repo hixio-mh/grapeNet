@@ -16,7 +16,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/koangel/daemon"
+	"github.com/takama/daemon"
 )
 
 type DaemonHandler func() string
@@ -59,7 +59,8 @@ func serviceRun(handler DaemonHandler) (string, error) {
 		case "status":
 			return sd.Status()
 		case "restart":
-			return sd.Restart()
+			sd.Stop()
+			return sd.Start()
 		default:
 			return usage, nil
 		}
