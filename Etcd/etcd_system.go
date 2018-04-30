@@ -197,6 +197,11 @@ func Grent(ttl int64) (resp *clientv3.LeaseGrantResponse, err error) {
 	return
 }
 
+func TimeToLive(Id clientv3.LeaseID) (resp *clientv3.LeaseTimeToLiveResponse, err error) {
+	resp, err = EtcdCli.TimeToLive(context.Background(), Id)
+	return
+}
+
 // 持续续约 会开启一个持续的携程去续约这个租约
 func Keeplive(Id clientv3.LeaseID) (<-chan *clientv3.LeaseKeepAliveResponse, error) {
 	return EtcdCli.KeepAlive(context.Background(), Id)

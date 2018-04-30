@@ -19,13 +19,14 @@ import (
 type EtcdHandler interface{}
 
 type EtcdWatcher struct {
-	key    string
-	caller reflect.Value
-	args   []reflect.Value
-	mux    sync.Mutex
-	ctx    context.Context
-	cancel context.CancelFunc
-	wchan  clientv3.WatchChan
+	key     string
+	caller  reflect.Value
+	args    []reflect.Value
+	mux     sync.Mutex
+	ctx     context.Context
+	cancel  context.CancelFunc
+	wchan   clientv3.WatchChan
+	isEvent bool
 }
 
 func (w *EtcdWatcher) init(opts ...clientv3.OpOption) {
@@ -49,12 +50,28 @@ func (w *EtcdWatcher) call(vtype string, key, value []byte) {
 	w.caller.Call(in)
 }
 
+func (w *EtcdWatcher) callEvent(ev *clientv3.Event) {
+	var in []reflect.Value = make([]reflect.Value, 1)
+
+	in[0] = reflect.ValueOf(ev)
+	for _, v := range w.args {
+		in = append(in, v)
+	}
+
+	w.caller.Call(in)
+}
+
 // 跑着处理所有相关的watcher事宜
 func (w *EtcdWatcher) watcher() {
+
 	for wch := range w.wchan {
 		for _, ev := range wch.Events {
-			// 处理他
-			w.call(ev.Type.String(), ev.Kv.Key, ev.Kv.Value)
+			if w.isEvent {
+				w.callEvent(ev)
+			} else {
+				// 处理他
+				w.call(ev.Type.String(), ev.Kv.Key, ev.Kv.Value)
+			}
 		}
 	}
 }
@@ -76,40 +93,55 @@ func BindWatcherPrefix(key string, isPrefix bool, wFunc EtcdHandler, args ...int
 
 	// 顺道获取下有多少个参数并把函数的部分参数绑定进去
 	argArr := []interface{}(args) // 先把参数都转成ARRAY
+	var mustArgs = watchMustArgs
+	if t.NumIn() == 1 {
 
-	if (len(argArr) + watchMustArgs) != t.NumIn() {
-		return errors.New("Not enough arguments")
+		chkType := t.In(0)
+		if chkType.Kind() != reflect.Ptr {
+			return errors.New("Handler 1st argument must be a ptr")
+		}
+
+		chkType = chkType.Elem()
+		event := reflect.TypeOf(clientv3.Event{})
+		if event.NumField() != chkType.NumField() && chkType.Kind() != reflect.Struct {
+			return errors.New("Handler 1st argument must be a clientv3.Event")
+		}
+
+		mustArgs = 1
+	} else {
+		if (len(argArr) + watchMustArgs) != t.NumIn() {
+			return errors.New("Not enough arguments")
+		}
+
+		chkType := t.In(0)
+		if chkType.Kind() != reflect.String {
+			return errors.New("Handler 1st argument must be a string")
+		}
+
+		chkType = t.In(1)
+		if chkType.Kind() != reflect.Slice {
+			return errors.New("Handler 2nd argument must be a []byte")
+		}
+
+		chkType = t.In(2)
+		if chkType.Kind() != reflect.Slice {
+			return errors.New("Handler 3rd argument must be a []byte")
+		}
 	}
-
-	chkType := t.In(0)
-	if chkType.Kind() != reflect.String {
-		return errors.New("Handler 1st argument must be a string")
-	}
-
-	chkType = t.In(1)
-	if chkType.Kind() != reflect.Slice {
-		return errors.New("Handler 2nd argument must be a []byte")
-	}
-
-	chkType = t.In(2)
-	if chkType.Kind() != reflect.Slice {
-		return errors.New("Handler 3rd argument must be a []byte")
-	}
-
 	// 解析全部参数
-	var in = make([]reflect.Value, (t.NumIn() - watchMustArgs)) //MAKE要保存的参数
-	for i := 0; i < (t.NumIn() - watchMustArgs); i++ {          // 跳过第一个type string参数
-		argType := t.In(i + watchMustArgs)
+	var in = make([]reflect.Value, (t.NumIn() - mustArgs)) //MAKE要保存的参数
+	for i := 0; i < (t.NumIn() - mustArgs); i++ {          // 跳过第一个type string参数
+		argType := t.In(i + mustArgs)
 		if argType != reflect.TypeOf(argArr[i]) {
 			return errors.New(fmt.Sprintf("Value not found for type %v", argType))
 		}
 		in[i] = reflect.ValueOf(argArr[i]) // 参数保存下来
 	}
-
 	wc := &EtcdWatcher{
-		key:    key,
-		caller: reflect.ValueOf(wFunc),
-		args:   in,
+		key:     key,
+		caller:  reflect.ValueOf(wFunc),
+		args:    in,
+		isEvent: mustArgs == 1,
 	}
 
 	if isPrefix == false {
