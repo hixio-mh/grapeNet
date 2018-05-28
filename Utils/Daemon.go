@@ -16,7 +16,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/takama/daemon"
+	"github.com/koangel/daemon"
 )
 
 type DaemonHandler func(signal chan os.Signal) string
