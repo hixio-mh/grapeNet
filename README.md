@@ -20,7 +20,7 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 个人博客：http://grapec.me/
 
 > 注意：由于ETCD V3 CLIENT不支持1.9以下版本的GO环境，所以ETCD库不在对1.8以下版本支持，TravisCI的BUILD状态也不支持1.9以下版本。
-> 仅仅支持 Go 1.9以及以上版本。
+> 仅仅支持 Go 1.10以及以上版本。
 
 ## 安装
 
@@ -35,6 +35,7 @@ go get -u github.com/koangel/grapeNet/...
 * 函数管理系统（可以根据任何类型参数将其与函数绑定并互相调用）
 * 流处理
 * Tcp网络
+* Kcp网络(基于KCPGO的网络基础库)
 * Websocket网络 （基础版）
 * Codec（任意类型注册对象并在其他位置动态创建该对象）
 * CSV序列化模块（通过Tag可以直接序列化到对象或对象序列化为CSV）
@@ -52,6 +53,7 @@ go get -u github.com/koangel/grapeNet/...
 * Etcd ClientV3(github.com/coreos/etcd)
 * Bson (gopkg.in/mgo.v2/bson)
 * Daemon (github.com/takama/daemon)
+* Kcp-Go (github.com/xtaci/kcp-go)
 
 不依赖任何CGO内容，lua本身也是纯GO实现。
 
@@ -67,6 +69,7 @@ go get -u github.com/koangel/grapeNet/...
 * [Sign Doc](./docs/Sign.md)
 * [Utils Doc](./docs/Utils.md)
 * [Continer Doc](./docs/Continer.md)
+* [KcpNet Doc](./docs/KcpNet.md)
 * [TcpNet Doc](./docs/TcpNet.md)
 * [WSNet Doc](./docs/WSNet.md)
 
