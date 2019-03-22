@@ -3,11 +3,12 @@ package kcpNet
 import (
 	"context"
 	"fmt"
-	"github.com/xtaci/kcp-go"
 	"net"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xtaci/kcp-go"
 
 	cm "github.com/koangel/grapeNet/ConnManager"
 	logger "github.com/koangel/grapeNet/Logger"
@@ -29,12 +30,12 @@ type KcpConn struct {
 	CryptKey []byte
 
 	IsClosed int32
+
+	writeTime int
+	readTime  int
 }
 
 const (
-	ReadWaitPing = 60 * time.Second
-	WriteTicker  = 60 * time.Second
-
 	queueCount = 2048
 )
 
@@ -43,10 +44,11 @@ const (
 
 func EmptyConn(ctype int) *KcpConn {
 	newConn := &KcpConn{
-		LastPing: time.Now(),
-		IsClosed: 0,
-
-		CryptKey: []byte{},
+		LastPing:  time.Now(),
+		IsClosed:  0,
+		writeTime: 120,
+		readTime:  120,
+		CryptKey:  []byte{},
 
 		send:    make(chan []byte, queueCount),
 		process: make(chan []byte, queueCount),
@@ -63,6 +65,9 @@ func EmptyConn(ctype int) *KcpConn {
 
 func NewConn(tn *KcpNetwork, conn *kcp.UDPSession, UData interface{}) *KcpConn {
 	newConn := EmptyConn(cm.ESERVER_TYPE)
+
+	newConn.writeTime = tn.KcpConf.Writetimeout
+	newConn.readTime = tn.KcpConf.Readtimeout
 
 	newConn.TConn = conn
 	newConn.ownerNet = tn
@@ -92,6 +97,10 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 	dconn.SetACKNoDelay(config.AckNodelay)
 
 	conn = EmptyConn(cm.ECLIENT_TYPE)
+
+	conn.writeTime = tn.KcpConf.Writetimeout
+	conn.readTime = tn.KcpConf.Readtimeout
+
 	conn.ownerNet = tn
 	conn.TConn = dconn
 	conn.UserData = UData
@@ -130,7 +139,7 @@ func (c *KcpConn) recvPump() {
 	var buffer []byte = make([]byte, 65535)
 	var lStream stream.BufferIO
 
-	c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+	c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
 
 	for {
 		rn, err := c.TConn.Read(buffer)
@@ -153,7 +162,7 @@ func (c *KcpConn) recvPump() {
 			return
 		}
 
-		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
 		lStream.Write(buffer, rn) // 拆包
 
 		upak, _ := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
@@ -201,7 +210,7 @@ func (c *KcpConn) writePump() {
 				return
 			}
 
-			c.TConn.SetWriteDeadline(time.Now().Add(60 * time.Second))
+			c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
 				return

@@ -30,6 +30,8 @@ const (
 		"log": true,
 		"snmplog": "",
 		"snmpperiod": 60,
+		"readTimeout": 65,
+		"writeTimeout": 65,
 		"pprof": false,
 		"quiet": true
 	}
@@ -57,6 +59,8 @@ type KcpConfig struct {
 	NoCongestion int    `json:"nc"`
 	SockBuf      int    `json:"sockbuf"`
 	KeepAlive    int    `json:"keepalive"`
+	Readtimeout  int    `json:"readTimeout"`
+	Writetimeout int    `json:"writeTimeout"`
 	Log          bool   `json:"log"`
 	SnmpLog      string `json:"snmplog"`
 	SnmpPeriod   int    `json:"snmpperiod"`
