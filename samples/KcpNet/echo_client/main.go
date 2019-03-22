@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/koangel/grapeNet/KcpNet"
 	"log"
 	"time"
+
+	kcpNet "github.com/koangel/grapeNet/KcpNet"
 )
 
 var (
@@ -20,12 +21,20 @@ func main() {
 		log.Fatal("kcp create nil...")
 	}
 
+	kcpConn.OnConnected = func(conn *kcpNet.KcpConn) {
+		go func() {
+			for i := 0; i < 100; i++ {
+				conn.Send([]byte(fmt.Sprintf("this is echo msg:%v", i)))
+			}
+		}()
+	}
+
 	kcpConn.OnClose = func(conn *kcpNet.KcpConn) {
 		if conn.TConn == nil {
 			return
 		}
 
-		log.Printf("Kcp Closed:%v From:%v", conn.SessionId, conn.TConn.RemoteAddr)
+		log.Printf("Kcp Closed:%v From:%v", conn.SessionId, conn.TConn.RemoteAddr())
 	}
 
 	kcpConn.OnHandler = func(conn *kcpNet.KcpConn, ownerPak []byte) {
@@ -33,23 +42,19 @@ func main() {
 	}
 
 	// 连接建立
-	for i := 0; i < 5000; i++ {
+	for i := 0; i < 1; i++ {
 		_, err := kcpConn.Dial("127.0.0.1:4744", nil)
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	for i := 0; i < 100; i++ {
-		kcpConn.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msg:%v", i)))
-	}
-
 	newTimer := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-newTimer.C:
-			fmt.Printf("RecvBytes:%v\n", totalRecv)
-			//connNet.NetCM.Broadcast([]byte("tick..."))
+			//fmt.Printf("RecvBytes:%v\n", totalRecv)
+			//kcpConn.NetCM.Broadcast([]byte("tick..."))
 		}
 	}
 
