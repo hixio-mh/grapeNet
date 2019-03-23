@@ -42,6 +42,10 @@ type KcpNetwork struct {
 
 	Encrypt func(data, key []byte) []byte
 	Decrypt func(data, key []byte) []byte
+
+	// ping,pong CALL
+	SendPing func(conn *KcpConn)
+	SendPong func(conn *KcpConn, ping []byte) bool
 }
 
 /////////////////////////////
@@ -119,6 +123,9 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 		Decrypt: defaultDecrypt,
 
 		Panic: defaultPanic,
+
+		SendPing: defaultPing,
+		SendPong: defalutPong,
 	}
 
 	err = tcp.listen(addr)
@@ -154,6 +161,9 @@ func NewEmptyKcp(cnf *KcpConfig) *KcpNetwork {
 		Decrypt: defaultDecrypt,
 
 		Panic: defaultPanic,
+
+		SendPing: defaultPing,
+		SendPong: defalutPong,
 	}
 }
 

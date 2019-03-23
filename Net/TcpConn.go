@@ -153,7 +153,7 @@ func (c *TcpConn) recvPump() {
 
 		upak, _ := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
 		for _, v := range upak {
-			if v[4] == 'h' && len(v) == 5 {
+			if c.ownerNet.SendPong(c, v) {
 				continue
 			}
 
@@ -206,7 +206,7 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
-			c.Send([]byte("h")) // 发送心跳
+			c.ownerNet.SendPing(c) // 发送心跳
 			break
 		}
 	}

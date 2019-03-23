@@ -1,6 +1,7 @@
 package kcpNet
 
 import (
+	"bytes"
 	"time"
 
 	logger "github.com/koangel/grapeNet/Logger"
@@ -108,4 +109,21 @@ func defaultLineData(conn *KcpConn, spak *stream.BufferIO) (data [][]byte, err e
 	spak.Reset()
 
 	return
+}
+
+func defaultPing(conn *KcpConn) {
+	conn.Send([]byte("ping"))
+}
+
+func defalutPong(conn *KcpConn, ping []byte) bool {
+	if bytes.HasSuffix(ping, []byte("pong")) {
+		return true
+	}
+
+	if bytes.HasSuffix(ping, []byte("ping")) {
+		conn.Send([]byte("pong"))
+		return true
+	}
+
+	return false
 }

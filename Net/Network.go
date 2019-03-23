@@ -45,6 +45,10 @@ type TCPNetwork struct {
 
 	Encrypt func(data, key []byte) []byte
 	Decrypt func(data, key []byte) []byte
+
+	// ping,pong CALL
+	SendPing func(conn *TcpConn)
+	SendPong func(conn *TcpConn, ping []byte) bool
 }
 
 /////////////////////////////
@@ -69,6 +73,9 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 		Decrypt: defaultDecrypt,
 
 		Panic: defaultPanic,
+
+		SendPing: defaultPing,
+		SendPong: defalutPong,
 	}
 
 	err = tcp.listen(addr)
@@ -98,6 +105,9 @@ func NewEmptyTcp() *TCPNetwork {
 		Decrypt: defaultDecrypt,
 
 		Panic: defaultPanic,
+
+		SendPing: defaultPing,
+		SendPong: defalutPong,
 	}
 }
 
