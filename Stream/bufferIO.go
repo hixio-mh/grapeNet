@@ -89,9 +89,14 @@ func (b *BufferIO) Resize(newSize int64) error {
 		return errors.New("NewSize is too short...")
 	}
 
-	tmpData := make([]byte, cap(b.vBuffer)*2+defaultSize) // 保存构建一个新的BUFFER
-	copy(tmpData, b.vBuffer)                              // copy旧的数据进
-	b.vBuffer = tmpData                                   // 新的缓冲区大小
+	iResize := int64(cap(b.vBuffer)*2 + defaultSize)
+	if newSize > defaultSize*2 {
+		iResize = newSize + int64(cap(b.vBuffer))
+	}
+
+	tmpData := make([]byte, iResize) // 保存构建一个新的BUFFER
+	copy(tmpData, b.vBuffer)         // copy旧的数据进
+	b.vBuffer = tmpData              // 新的缓冲区大小
 
 	return nil
 }

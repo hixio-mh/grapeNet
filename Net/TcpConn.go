@@ -149,15 +149,20 @@ func (c *TcpConn) recvPump() {
 		}
 
 		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
-		lStream.Write(buffer, rn)
+		if lStream.Write(buffer, rn) == -1 {
+			logger.ERROR("Session %v Recv Error:Packet size is too big...", c.SessionId)
+			return
+		}
 
-		upak, _ := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
-		for _, v := range upak {
-			if c.ownerNet.SendPong(c, v) {
-				continue
+		upak, err := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
+		if err == nil {
+			for _, v := range upak {
+				if c.ownerNet.SendPong(c, v) {
+					continue
+				}
+
+				c.ownerNet.OnHandler(c, v[4:])
 			}
-
-			c.ownerNet.OnHandler(c, v[4:])
 		}
 	}
 }

@@ -163,16 +163,23 @@ func (c *KcpConn) recvPump() {
 		}
 
 		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
-		lStream.Write(buffer, rn) // 拆包
 
-		upak, _ := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
-		for _, v := range upak {
-			// 心跳包
-			if c.ownerNet.SendPong(c, v) {
-				continue
+		// 拆包
+		if lStream.Write(buffer, rn) == -1 {
+			logger.ERROR("Session %v Recv Error:Packet size is too big...", c.SessionId)
+			return
+		}
+
+		upak, err := c.ownerNet.Unpackage(c, &lStream) // 调用解压行为
+		if err == nil {
+			for _, v := range upak {
+				// 心跳包
+				if c.ownerNet.SendPong(c, v) {
+					continue
+				}
+
+				c.ownerNet.OnHandler(c, v[4:])
 			}
-
-			c.ownerNet.OnHandler(c, v[4:])
 		}
 	}
 }
