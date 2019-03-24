@@ -87,7 +87,9 @@ func defaultByteData(conn *KcpConn, spak *stream.BufferIO) (data [][]byte, err e
 		data = append(data, pData)
 	}
 
-	spak.Reset()
+	if total > 0 {
+		spak.Reset()
+	}
 
 	return
 }
@@ -109,7 +111,9 @@ func defaultLineData(conn *KcpConn, spak *stream.BufferIO) (data [][]byte, err e
 		data = append(data, pData)
 	}
 
-	spak.Reset()
+	if len(data) > 0 {
+		spak.Reset()
+	}
 
 	return
 }

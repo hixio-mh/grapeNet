@@ -93,7 +93,9 @@ func defaultByteData(conn *TcpConn, spak *stream.BufferIO) (data [][]byte, err e
 		data = append(data, pData)
 	}
 
-	spak.Reset()
+	if total > 0 {
+		spak.Reset()
+	}
 
 	return
 }

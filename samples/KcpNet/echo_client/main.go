@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"time"
@@ -22,10 +23,19 @@ func main() {
 	}
 
 	kcpConn.OnConnected = func(conn *kcpNet.KcpConn) {
-		go func() {
+		/*go func() {
 			for i := 0; i < 100; i++ {
 				conn.Send([]byte(fmt.Sprintf("this is echo msg:%v", i)))
 			}
+		}()*/
+
+		go func() {
+			byteBig := bytes.NewBuffer([]byte{})
+			for i := 0; i < 100000; i++ {
+				byteBig.WriteString(fmt.Sprintf("this is echo msg:%v \n", i))
+			}
+
+			conn.Send(byteBig.Bytes())
 		}()
 	}
 
