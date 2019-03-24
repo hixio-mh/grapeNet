@@ -74,11 +74,14 @@ func defaultPanic(conn *TcpConn, src string) {
 func defaultByteData(conn *TcpConn, spak *stream.BufferIO) (data [][]byte, err error) {
 	data = [][]byte{}
 	total := int(0)
+	err = nil
 
 	for {
 		pData, uerr := spak.Unpack(conn.ownerNet.Decrypt, conn.CryptKey)
 		if uerr != nil {
-			err = uerr
+			if total <= 0 {
+				err = uerr
+			}
 			break
 		}
 
