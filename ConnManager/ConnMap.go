@@ -168,6 +168,15 @@ func (c *ConnManager) Get(sessionId string) ConnInterface {
 	return val
 }
 
+func (c *ConnManager) BroadcastMsg(pak interface{}) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for _, v := range c.sessions {
+		v.SendPak(pak)
+	}
+}
+
 func (c *ConnManager) Broadcast(data []byte) {
 	c.locker.RLock()
 	defer c.locker.RUnlock()
@@ -190,6 +199,19 @@ func (c *ConnManager) BroadcastExcep(sessionId string, data []byte) {
 	}
 }
 
+func (c *ConnManager) BroadcastMsgExcep(sessionId string, pak interface{}) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for k, v := range c.sessions {
+		if k == sessionId {
+			continue
+		}
+
+		v.SendPak(pak)
+	}
+}
+
 func (c *ConnManager) BroadcastType(vtype int, data []byte) {
 	c.locker.RLock()
 	defer c.locker.RUnlock()
@@ -197,6 +219,17 @@ func (c *ConnManager) BroadcastType(vtype int, data []byte) {
 	for _, v := range c.sessions {
 		if vtype == v.CType() {
 			v.Send(data)
+		}
+	}
+}
+
+func (c *ConnManager) BroadcastMsgType(vtype int, pak interface{}) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for _, v := range c.sessions {
+		if vtype == v.CType() {
+			v.SendPak(pak)
 		}
 	}
 }
@@ -212,6 +245,21 @@ func (c *ConnManager) BroadcastTypeExcep(vtype int, sessionId string, data []byt
 
 		if vtype == v.CType() {
 			v.Send(data)
+		}
+	}
+}
+
+func (c *ConnManager) BroadcastMsgTypeExcep(vtype int, sessionId string, pak interface{}) {
+	c.locker.RLock()
+	defer c.locker.RUnlock()
+
+	for k, v := range c.sessions {
+		if k == sessionId {
+			continue
+		}
+
+		if vtype == v.CType() {
+			v.SendPak(pak)
 		}
 	}
 }
