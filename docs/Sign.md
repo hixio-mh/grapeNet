@@ -14,6 +14,9 @@ type SignTest struct {
 }
 ```
 
+连接方式根据IsUseKey选项进行配置，如果为TRUE那么连接后为：a=val&b=val&c=val&svKey=appKey 否则为 val&val&val&appKey
+合并选项均可改变，具体可看源码。
+
 声明类型有各种类型，其中会用于sign传递的参数名为Sign，同时类型为string，那么我们需要对签名设置为"-"，意思为在打包整个签名中不计算该参数，现在我们来为这个结构生成签名。
 > 注意：生成签名时不会计算sign的签名内容，且参数会自动排序。
 

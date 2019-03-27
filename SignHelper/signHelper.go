@@ -51,7 +51,7 @@ func SortMap2Str(tmap map[string]interface{}) string {
 		if IsUseKey {
 			signArgs = append(signArgs, fmt.Sprintf("%v=%v", vk, tmap[vk]))
 		} else {
-			signArgs = append(signArgs, fmt.Sprintf("%v", vk, tmap[vk]))
+			signArgs = append(signArgs, fmt.Sprintf("%v", tmap[vk]))
 		}
 	}
 
@@ -171,6 +171,8 @@ func KeySignMD5(t interface{}, key string) (sign string, err error) {
 		return
 	}
 
+	tmap["svKey"] = key
+
 	md5hash := md5.New()
 	md5hash.Write([]byte(SortMap2Str(tmap)))
 	sign = hex.EncodeToString(md5hash.Sum(nil))
@@ -186,6 +188,8 @@ func KeySignSha1(t interface{}, key string) (sign string, err error) {
 		err = terr
 		return
 	}
+
+	tmap["svKey"] = key
 
 	sha1hash := sha1.New()
 	sha1hash.Write([]byte(SortMap2Str(tmap)))
