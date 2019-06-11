@@ -235,6 +235,7 @@ func (c *KcpNetwork) onAccept() {
 			continue
 		}
 
+		failures = 0
 		logger.INFO("New Kcp Connection:%v，Accept.", conn.RemoteAddr())
 		var client = NewConn(c, conn, c.CreateUserData())
 

@@ -139,9 +139,8 @@ func (c *KcpConn) recvPump() {
 	var buffer []byte = make([]byte, 65535)
 	var lStream stream.BufferIO
 
-	c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
-
 	for {
+		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
 		rn, err := c.TConn.Read(buffer)
 		if err != nil {
 			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
@@ -161,8 +160,6 @@ func (c *KcpConn) recvPump() {
 			logger.ERROR("Handler is Null,Closed...")
 			return
 		}
-
-		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
 
 		// 拆包
 		if lStream.Write(buffer, rn) == -1 {
@@ -185,7 +182,7 @@ func (c *KcpConn) recvPump() {
 }
 
 func (c *KcpConn) writePump() {
-	heartbeat := time.NewTicker(30 * time.Second)
+	heartbeat := time.NewTicker(10 * time.Second)
 	c.Wg.Add(1)
 	defer func() {
 		if p := recover(); p != nil {
