@@ -16,6 +16,8 @@ var (
 func main() {
 	cnf := kcpNet.NewConfig()
 	cnf.Mode = "aes"
+	cnf.Writetimeout = 35
+	cnf.Readtimeout = 45
 
 	kcpConn := kcpNet.NewEmptyKcp(cnf)
 	if kcpConn == nil {
@@ -64,7 +66,7 @@ func main() {
 		select {
 		case <-newTimer.C:
 			//fmt.Printf("RecvBytes:%v\n", totalRecv)
-			//kcpConn.NetCM.Broadcast([]byte("tick..."))
+			kcpConn.NetCM.Broadcast([]byte("tick..."))
 		}
 	}
 

@@ -8,6 +8,8 @@ import (
 func main() {
 	cnf := kcpNet.NewConfig()
 	cnf.Mode = "aes"
+	cnf.Writetimeout = 35
+	cnf.Readtimeout = 45
 
 	// 需要自主加解密算法的使用
 	//cnf.Mode = "none"
