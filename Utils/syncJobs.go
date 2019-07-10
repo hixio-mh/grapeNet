@@ -103,6 +103,29 @@ func (job *SyncJob) AppendR(fn, rcall jobhandler, args ...interface{}) error {
 	return nil
 }
 
+func (job *SyncJob) SliceJob(slice interface{}, breakup int, fn func(start, end int)) {
+	rv := reflect.ValueOf(slice)
+	total := rv.Len()
+	if total > breakup {
+		jobCount := total / breakup
+		if jobCount%breakup > 0 {
+			jobCount++
+		}
+
+		for i := 0; i < jobCount; i++ {
+			startV := i * breakup
+			endV := startV + breakup
+			if endV >= total {
+				endV = total
+			}
+
+			job.Append(fn, startV, endV)
+		}
+	} else {
+		job.Append(fn, 0, total)
+	}
+}
+
 func (job *SyncJob) proc(e *jobElement) {
 
 	rv := reflect.ValueOf(e.handler).Call(e.in)

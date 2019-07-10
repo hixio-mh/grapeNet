@@ -87,6 +87,8 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 
 例如，我需要同时取出玩家装备信息、战斗信息、宠物信息等，使用这个库同时发起请求并赋值某个结果合并发送。
 
+新增针对切片的并行任务体系
+
 > 注意：非重度，长时间且需要拆分的任务，不要使用这个类，因为有大量反射耗时且ALLOC很多！在我机器平均完成单一任务执行需要 4147 ns/op & 11 allocs/op，我感觉好慢！
 > 你可以在你机器上跑跑benchmark
 
@@ -118,7 +120,17 @@ Golang是不存在三元运算符的，例如 在C/C++中的 c ? a : b 的写法
 		t.Fail()
 		return
 	}
-
+	
+	// 对切片创建并行任务
+	jobStr := "a,b,c,d,e,f,g,a,c,asd,a,a,a,a,s,s,s,d,d,a,a,sd,d,a,s"
+    sliceStr := strings.Split(jobStr,",")
+    jobs.SliceJob(sliceStr,2, func(start, end int) {
+    	fmt.Println(start,end,sliceStr[start:end])
+    	for i := start;i < end;i++ {
+    		//分段处理
+    	}
+    })
+	
 	jobs.StartWait()
 ```
 
