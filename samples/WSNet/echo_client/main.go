@@ -29,8 +29,8 @@ func main() {
 	wsNet.OnHandler = RecvEchoMsg
 
 	// 连接建立
-	for i := 0; i < 100; i++ {
-		_, err := wsNet.Dial("127.0.0.1:47892")
+	for i := 0; i < 1; i++ {
+		_, err := wsNet.Dial("ws.vpue.me:80")
 		if err != nil {
 			log.Fatal(err)
 		}

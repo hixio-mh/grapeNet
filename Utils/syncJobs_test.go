@@ -2,6 +2,7 @@ package Utils
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -61,6 +62,19 @@ func Test_JobsAppendR(t *testing.T) {
 
 func Test_EmptyJobs(t *testing.T) {
 	jobs := &SyncJob{}
+	jobs.StartWait()
+}
+
+func Test_SliceJobs(t *testing.T) {
+	jobStr := "a,b,c,d,e,f,g,a,c,asd,a,a,a,a,s,s,s,d,d,a,a,sd,d,a,s"
+	sliceStr := strings.Split(jobStr, ",")
+	jobs := &SyncJob{}
+	jobs.SliceJob(sliceStr, 2, func(start, end int) {
+		fmt.Println(start, end, sliceStr[start:end])
+		for i := start; i < end; i++ {
+			//分段处理
+		}
+	})
 	jobs.StartWait()
 }
 

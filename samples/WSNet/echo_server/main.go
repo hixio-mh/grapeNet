@@ -28,6 +28,7 @@ func main() {
 
 	wsNet := ws.NewWebsocket(":47892", "", "/ws")
 
+	wsNet.SetTextMessage()
 	wsNet.OnHandler = RecvEchoMsg
 	wsNet.OnClose = OnClosed
 

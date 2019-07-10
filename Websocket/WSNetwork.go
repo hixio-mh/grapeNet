@@ -135,6 +135,14 @@ func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
 
 //////////////////////////////////////
 // 成员函数
+func (c *WSNetwork) SetTextMessage() {
+	c.MsgType = TextMsg
+}
+
+func (c *WSNetwork) SetBinaryMessage() {
+	c.MsgType = BinaryMsg
+}
+
 func (c *WSNetwork) RemoveSession(sessionId string) {
 	c.NetCM.Remove(sessionId)
 }
