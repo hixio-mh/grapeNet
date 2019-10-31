@@ -122,12 +122,11 @@ func (c *TcpConn) recvPump() {
 
 	}()
 
-	var buffer []byte = make([]byte, 65535)
+	var buffer = make([]byte, 65535)
 	var lStream stream.BufferIO
 
-	c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
-
 	for {
+		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		rn, err := c.TConn.Read(buffer)
 		if err != nil {
 			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
@@ -148,7 +147,6 @@ func (c *TcpConn) recvPump() {
 			return
 		}
 
-		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		if lStream.Write(buffer, rn) == -1 {
 			logger.ERROR("Session %v Recv Error:Packet size is too big...", c.SessionId)
 			return
