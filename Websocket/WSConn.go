@@ -135,7 +135,6 @@ func (c *WSConn) recvPump() {
 	}()
 
 	c.WConn.SetReadLimit(65536)
-	c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 	c.WConn.SetPingHandler(func(string) error {
 		c.Send([]byte{0xf1, ws.PongMessage})
 		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
@@ -144,6 +143,7 @@ func (c *WSConn) recvPump() {
 	c.WConn.SetPongHandler(func(string) error { c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing)); return nil })
 
 	for {
+		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 		wType, wmsg, err := c.WConn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
@@ -167,8 +167,6 @@ func (c *WSConn) recvPump() {
 		if atomic.LoadInt32(&c.IsClosed) == 1 {
 			return
 		}
-
-		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
 
 		if c.ownerNet.OnHandler != nil {
 			c.ownerNet.OnHandler(c, c.ownerNet.Decrypt(wmsg, c.CryptKey))

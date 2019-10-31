@@ -2,6 +2,7 @@ package grapeFunc
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -15,6 +16,33 @@ func vest3(i uint32, s string, data string) {
 
 func vest4Result(i uint32, s string, data string) (uint32, string) {
 	return i, s
+}
+
+type iTest interface {
+	Write()
+}
+
+type TestIns struct {
+}
+
+func (c *TestIns) Write() {
+	fmt.Println("TestIns write...")
+}
+
+func vestInterface(i interface{}, test iTest) {
+	fmt.Println(i)
+	test.Write()
+}
+
+func Test_InterfaceCall(t *testing.T) {
+
+	reflect.TypeOf(new(TestIns))
+
+	FastBind("interface", vestInterface)
+	err := FastCall("interface", 3000, new(TestIns))
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func Test_MapCall(t *testing.T) {
