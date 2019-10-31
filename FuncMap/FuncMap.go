@@ -55,7 +55,6 @@ func (m *FuncMap) buildCaller(cmd interface{}, args ...interface{}) (h interface
 	in = make([]reflect.Value, t.NumIn()) //Panic if t is not kind of Func
 	for i := 0; i < t.NumIn(); i++ {
 		argType := t.In(i)
-		fmt.Println(argType.Name(), argArr[i])
 		if argType != reflect.TypeOf(argArr[i]) && argType.Kind() != reflect.Interface {
 			err = errors.New(fmt.Sprintf("Value not found for type %v", argType))
 			return
