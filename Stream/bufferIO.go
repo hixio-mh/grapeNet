@@ -156,7 +156,7 @@ func (b *BufferIO) Seek(pos int64) error {
 }
 
 func (b *BufferIO) WSeek(pos int64) error {
-	if int64(pos) > len(b.vBuffer) {
+	if int64(pos) > int64(len(b.vBuffer)) {
 		return errors.New("Seek Pos OverFlow...")
 	}
 	if pos < 0 {
