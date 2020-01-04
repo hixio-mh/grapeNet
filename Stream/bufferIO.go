@@ -143,7 +143,7 @@ func (b *BufferIO) Skip(size int) error {
 }
 
 // 从开始跳到指定位置
-func (b *BufferIO) Seek(pos int) error {
+func (b *BufferIO) Seek(pos int64) error {
 	if int64(pos) > b.writeIndex {
 		return errors.New("Seek Pos OverFlow...")
 	}
@@ -152,6 +152,18 @@ func (b *BufferIO) Seek(pos int) error {
 	}
 
 	b.readIndex = int64(pos)
+	return nil
+}
+
+func (b *BufferIO) WSeek(pos int64) error {
+	if int64(pos) > b.writeIndex {
+		return errors.New("Seek Pos OverFlow...")
+	}
+	if pos < 0 {
+		return errors.New("Unknow Seek Pos...")
+	}
+
+	b.writeIndex = int64(pos)
 	return nil
 }
 
