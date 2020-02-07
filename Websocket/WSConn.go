@@ -196,7 +196,6 @@ func (c *WSConn) writePump() {
 		select {
 		case <-c.Ctx.Done():
 			logger.INFO("%v session write done...", c.SessionId)
-			c.WConn.WriteMessage(ws.CloseMessage, []byte{}) // 发消息关闭
 			return
 		case bData, ok := <-c.send:
 			if !ok {
