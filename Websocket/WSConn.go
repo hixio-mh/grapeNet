@@ -199,7 +199,6 @@ func (c *WSConn) writePump() {
 			return
 		case bData, ok := <-c.send:
 			if !ok {
-				c.WConn.WriteMessage(ws.CloseMessage, []byte{}) // 发消息关闭
 				return
 			}
 
