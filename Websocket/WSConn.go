@@ -35,6 +35,9 @@ type WSConn struct {
 	CryptKey []byte
 
 	IsClosed int32
+
+	readTimeout  time.Duration
+	writeTimeout time.Duration
 }
 
 const (
@@ -60,6 +63,9 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 		send:     make(chan []byte, queueCount),
 		process:  make(chan []byte, queueCount),
 		IsClosed: 0,
+
+		writeTimeout: WriteTicker,
+		readTimeout:  ReadWaitPing,
 	}
 
 	NewWConn.Ctx, NewWConn.Cancel = context.WithCancel(context.Background())
@@ -96,6 +102,9 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 		send:    make(chan []byte, queueCount),
 		process: make(chan []byte, queueCount),
+
+		writeTimeout: WriteTicker,
+		readTimeout:  ReadWaitPing,
 	}
 
 	err = nil
@@ -110,6 +119,14 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *WSConn) SetReadTimeout(t time.Duration) {
+	c.readTimeout = t
+}
+
+func (c *WSConn) SetWriteTimeout(t time.Duration) {
+	c.writeTimeout = t
+}
+
 func (c *WSConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
@@ -134,16 +151,16 @@ func (c *WSConn) recvPump() {
 		c.ownerNet.RemoveSession(c.SessionId) // 删除
 	}()
 
-	c.WConn.SetReadLimit(65536)
+	c.WConn.SetReadLimit(65536 * 4)
 	c.WConn.SetPingHandler(func(string) error {
 		c.Send([]byte{0xf1, ws.PongMessage})
-		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
 		return nil
 	})
-	c.WConn.SetPongHandler(func(string) error { c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing)); return nil })
+	c.WConn.SetPongHandler(func(string) error { c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout)); return nil })
 
 	for {
-		c.WConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
 		wType, wmsg, err := c.WConn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
@@ -206,7 +223,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+			c.WConn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
 
 			if len(bData) == 2 && bData[0] == 0xf1 {
 				if err := c.WConn.WriteMessage(int(bData[1]), nil); err != nil {
@@ -229,7 +246,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+			c.WConn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
 			if err := c.WConn.WriteMessage(ws.PingMessage, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
