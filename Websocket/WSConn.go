@@ -41,8 +41,8 @@ type WSConn struct {
 }
 
 const (
-	ReadWaitPing = 45 * time.Second
-	WriteTicker  = 60 * time.Second
+	ReadWaitPing = 120 * time.Second
+	WriteTicker  = 120 * time.Second
 
 	pingTickTime = (ReadWaitPing * 9) / 10
 
@@ -80,7 +80,7 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSConn, err error) {
 	conn = nil
 	err = errors.New("unknow error.")
-	ws.DefaultDialer.HandshakeTimeout = 60 * time.Second
+	ws.DefaultDialer.HandshakeTimeout = 120 * time.Second
 	wsHeader := http.Header{}
 	wsHeader.Set("Origin", sOrigin)
 	wsHeader.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36")
