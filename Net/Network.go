@@ -51,9 +51,18 @@ type TCPNetwork struct {
 	SendPong func(conn *TcpConn, ping []byte) bool
 }
 
+var (
+	HandlerProc = 2
+)
+
 /////////////////////////////
 // 创建网络服务器
 func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
+
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
+
 	tcp = &TCPNetwork{
 		listener: nil,
 		NetCM:    cm.NewCM(),
@@ -86,6 +95,10 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 }
 
 func NewEmptyTcp() *TCPNetwork {
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
+
 	return &TCPNetwork{
 		listener: nil,
 		NetCM:    cm.NewCM(),

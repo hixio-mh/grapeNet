@@ -60,9 +60,17 @@ type WSNetwork struct {
 	MsgType int
 }
 
+var (
+	HandlerProc = 2
+)
+
 //////////////////////////////////////
 // 新建函数
 func NetEmptyWS(Origin, wPath string) *WSNetwork {
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
+
 	NewWC := &WSNetwork{
 		NetCM:     cm.NewCM(),
 		Origin:    Origin,
@@ -98,6 +106,10 @@ func NetEmptyWS(Origin, wPath string) *WSNetwork {
 }
 
 func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
+
 	NewWC := &WSNetwork{
 		address:   addr,
 		NetCM:     cm.NewCM(),

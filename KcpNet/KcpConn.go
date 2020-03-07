@@ -113,6 +113,46 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 func (c *KcpConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
+
+	for i := 0; i < HandlerProc; i++ {
+		go c.handlerPump()
+	}
+}
+
+func (c *KcpConn) handlerPump() {
+	defer func() {
+		if p := recover(); p != nil {
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
+		}
+
+		c.Wg.Done()
+		logger.INFO("handler Pump defer done!!!")
+	}()
+
+	c.Wg.Add(1)
+	for {
+		select {
+		case <-c.Ctx.Done():
+			logger.INFO("%v session handler done...", c.SessionId)
+			return
+		case item := <-c.process:
+			{
+				if atomic.LoadInt32(&c.IsClosed) == 1 {
+					return
+				}
+
+				if c.ownerNet.OnHandler != nil {
+					c.ownerNet.OnHandler(c, item)
+				}
+			}
+		}
+	}
 }
 
 func (c *KcpConn) recvPump() {
@@ -175,7 +215,7 @@ func (c *KcpConn) recvPump() {
 					continue
 				}
 
-				c.ownerNet.OnHandler(c, v[4:])
+				c.process <- v[4:]
 			}
 		}
 	}

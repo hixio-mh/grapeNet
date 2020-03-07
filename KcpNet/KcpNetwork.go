@@ -48,6 +48,10 @@ type KcpNetwork struct {
 	SendPong func(conn *KcpConn, ping []byte) bool
 }
 
+var (
+	HandlerProc = 2
+)
+
 /////////////////////////////
 // 创建网络服务器
 func parserConf(config *KcpConfig) (*KcpConfig, kcp.BlockCrypt) {
@@ -101,6 +105,10 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 
 	config, block := parserConf(cnf)
 
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
+
 	tcp = &KcpNetwork{
 		listener: nil,
 		NetCM:    cm.NewCM(),
@@ -138,6 +146,10 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 
 func NewEmptyKcp(cnf *KcpConfig) *KcpNetwork {
 	config, block := parserConf(cnf)
+
+	if HandlerProc <= 1 {
+		HandlerProc = 1
+	}
 
 	return &KcpNetwork{
 		listener: nil,
