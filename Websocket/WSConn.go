@@ -42,9 +42,9 @@ type WSConn struct {
 
 const (
 	ReadWaitPing = 120 * time.Second
-	WriteTicker  = 120 * time.Second
+	WriteTicker  = 10 * time.Minute
 
-	pingTickTime = (ReadWaitPing * 9) / 10
+	pingTickTime = 30 * time.Second
 
 	queueCount = 2048
 )
@@ -130,10 +130,6 @@ func (c *WSConn) SetWriteTimeout(t time.Duration) {
 func (c *WSConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
-
-	for i := 0; i < HandlerProc; i++ {
-		go c.handlerPump()
-	}
 }
 
 func (c *WSConn) handlerPump() {
@@ -183,7 +179,7 @@ func (c *WSConn) recvPump() {
 			}
 		}
 
-		logger.INFO("recv Pump defer done!!!")
+		logger.INFO("%v recv Pump defer done!!!", c.SessionId)
 		c.Cancel() // 结束
 		c.Wg.Wait()
 		c.Close()                             // 关闭SOCKET
@@ -196,7 +192,10 @@ func (c *WSConn) recvPump() {
 		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
 		return nil
 	})
-	c.WConn.SetPongHandler(func(string) error { c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout)); return nil })
+	c.WConn.SetPongHandler(func(string) error {
+		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
+		return nil
+	})
 
 	for {
 		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
@@ -224,7 +223,12 @@ func (c *WSConn) recvPump() {
 			return
 		}
 
-		c.process <- c.ownerNet.Decrypt(wmsg, c.CryptKey)
+		if c.ownerNet.OnHandler != nil {
+			item := c.ownerNet.Decrypt(wmsg, c.CryptKey)
+			if len(item) > 1 {
+				c.ownerNet.OnHandler(c, item)
+			}
+		}
 	}
 }
 
@@ -243,7 +247,7 @@ func (c *WSConn) writePump() {
 		}
 
 		c.Wg.Done()
-		logger.INFO("write Pump defer done!!!")
+		logger.INFO("%v write Pump defer done!!!", c.SessionId)
 	}()
 
 	for {
@@ -260,7 +264,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 
 			if len(bData) == 2 && bData[0] == 0xf1 {
 				if err := c.WConn.WriteMessage(int(bData[1]), nil); err != nil {
@@ -283,7 +287,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			c.WConn.SetWriteDeadline(time.Now().Add(c.writeTimeout))
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.WConn.WriteMessage(ws.PingMessage, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
@@ -330,6 +334,38 @@ func (c *WSConn) SendPak(val interface{}) int {
 	return c.Send(pack)
 }
 
+func (c *WSConn) SendDirect(data []byte) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	encode := c.ownerNet.Encrypt(data, c.CryptKey)
+	err := c.WConn.WriteMessage(c.ownerNet.MsgType, encode)
+	if err != nil {
+		logger.ERRORV(err)
+		return -1
+	}
+	return len(encode)
+}
+
+func (c *WSConn) SendPakDirect(val interface{}) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	if c.ownerNet.Package == nil {
+		logger.ERROR("Package Func Error,Can't Send...")
+		return -1
+	}
+
+	pack, err := c.ownerNet.Package(val)
+	if err != nil {
+		return -1
+	}
+
+	return c.SendDirect(pack)
+}
+
 func (c *WSConn) Close() {
 	c.Once.Do(func() {
 		if c.WConn == nil {
@@ -350,7 +386,7 @@ func (c *WSConn) RemoveData() {
 	if atomic.LoadInt32(&c.IsClosed) == 1 {
 		c.WConn = nil
 
-		logger.INFO("cleanup data...")
+		logger.INFO("%v cleanup data...", c.SessionId)
 
 		close(c.send)
 		c.send = nil

@@ -27,16 +27,17 @@ func main() {
 
 	wsNet.OnClose = OnClose
 	wsNet.OnHandler = RecvEchoMsg
+	wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
 
 	// 连接建立
-	for i := 0; i < 1; i++ {
-		_, err := wsNet.Dial("ws.vpue.me:80")
+	for i := 0; i < 1000; i++ {
+		_, err := wsNet.Dial("localhost:47892")
 		if err != nil {
 			log.Fatal(err)
 		}
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msg:%v", i)))
 	}
 

@@ -27,6 +27,10 @@ type ConnInterface interface {
 	GetSessionId() string
 	Send(data []byte) int
 	SendPak(val interface{}) int
+
+	SendDirect(data []byte) int
+	SendPakDirect(val interface{}) int
+
 	Close()
 
 	InitData()
@@ -60,6 +64,14 @@ func (c *Conn) Send(data []byte) int {
 	return -1
 }
 
+func (c *Conn) SendDirect(data []byte) int {
+	return -1
+}
+
+func (c *Conn) SendPakDirect(val interface{}) int {
+	return -1
+}
+
 func (c *Conn) Close() {
 
 }
@@ -88,6 +100,8 @@ type ConnManager struct {
 	Unregister chan ConnInterface
 
 	locker sync.RWMutex // 锁
+
+	SendMode int // 默认为0使用协程发送 1为直接发送
 }
 
 func NewCM() *ConnManager {
@@ -96,6 +110,7 @@ func NewCM() *ConnManager {
 		sessions:   make(map[string]ConnInterface),
 		Register:   make(chan ConnInterface, defaultChan),
 		Unregister: make(chan ConnInterface, defaultChan),
+		SendMode:   0,
 	}
 
 	go newCm.process()
@@ -173,7 +188,12 @@ func (c *ConnManager) BroadcastMsg(pak interface{}) {
 	defer c.locker.RUnlock()
 
 	for _, v := range c.sessions {
-		v.SendPak(pak)
+		switch c.SendMode {
+		case 1:
+			v.SendPakDirect(pak)
+		default:
+			v.SendPak(pak)
+		}
 	}
 }
 
@@ -182,7 +202,12 @@ func (c *ConnManager) Broadcast(data []byte) {
 	defer c.locker.RUnlock()
 
 	for _, v := range c.sessions {
-		v.Send(data)
+		switch c.SendMode {
+		case 1:
+			v.SendDirect(data)
+		default:
+			v.Send(data)
+		}
 	}
 }
 
@@ -195,7 +220,12 @@ func (c *ConnManager) BroadcastExcep(sessionId string, data []byte) {
 			continue
 		}
 
-		v.Send(data)
+		switch c.SendMode {
+		case 1:
+			v.SendDirect(data)
+		default:
+			v.Send(data)
+		}
 	}
 }
 
@@ -208,7 +238,12 @@ func (c *ConnManager) BroadcastMsgExcep(sessionId string, pak interface{}) {
 			continue
 		}
 
-		v.SendPak(pak)
+		switch c.SendMode {
+		case 1:
+			v.SendPakDirect(pak)
+		default:
+			v.SendPak(pak)
+		}
 	}
 }
 
@@ -218,7 +253,12 @@ func (c *ConnManager) BroadcastType(vtype int, data []byte) {
 
 	for _, v := range c.sessions {
 		if vtype == v.CType() {
-			v.Send(data)
+			switch c.SendMode {
+			case 1:
+				v.SendDirect(data)
+			default:
+				v.Send(data)
+			}
 		}
 	}
 }
@@ -229,7 +269,12 @@ func (c *ConnManager) BroadcastMsgType(vtype int, pak interface{}) {
 
 	for _, v := range c.sessions {
 		if vtype == v.CType() {
-			v.SendPak(pak)
+			switch c.SendMode {
+			case 1:
+				v.SendPakDirect(pak)
+			default:
+				v.SendPak(pak)
+			}
 		}
 	}
 }
@@ -244,7 +289,12 @@ func (c *ConnManager) BroadcastTypeExcep(vtype int, sessionId string, data []byt
 		}
 
 		if vtype == v.CType() {
-			v.Send(data)
+			switch c.SendMode {
+			case 1:
+				v.SendDirect(data)
+			default:
+				v.Send(data)
+			}
 		}
 	}
 }
@@ -259,7 +309,12 @@ func (c *ConnManager) BroadcastMsgTypeExcep(vtype int, sessionId string, pak int
 		}
 
 		if vtype == v.CType() {
-			v.SendPak(pak)
+			switch c.SendMode {
+			case 1:
+				v.SendPakDirect(pak)
+			default:
+				v.SendPak(pak)
+			}
 		}
 	}
 }

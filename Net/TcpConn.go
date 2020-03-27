@@ -38,9 +38,10 @@ type TcpConn struct {
 
 const (
 	ReadWaitPing = 60 * time.Second
-	WriteTicker  = 60 * time.Second
+	WriteTicker  = 5 * time.Minute
 
-	queueCount = 2048
+	queueCount    = 2048
+	maxPacketSize = 6 * 1024 * 1024 // 6兆数据包最大
 )
 
 //////////////////////////////////////
@@ -99,10 +100,6 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 func (c *TcpConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
-
-	for i := 0; i < HandlerProc; i++ {
-		go c.handlerPump()
-	}
 }
 
 func (c *TcpConn) handlerPump() {
@@ -199,14 +196,16 @@ func (c *TcpConn) recvPump() {
 					continue
 				}
 
-				c.process <- v[4:]
+				if c.ownerNet.OnHandler != nil {
+					c.ownerNet.OnHandler(c, v[4:])
+				}
 			}
 		}
 	}
 }
 
 func (c *TcpConn) writePump() {
-	heartbeat := time.NewTicker(30 * time.Second)
+	heartbeat := time.NewTicker(15 * time.Second)
 	c.Wg.Add(1)
 	defer func() {
 		if p := recover(); p != nil {
@@ -238,7 +237,7 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
-			c.TConn.SetWriteDeadline(time.Now().Add(60 * time.Second))
+			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
 				return
@@ -249,6 +248,7 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
+			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			c.ownerNet.SendPing(c) // 发送心跳
 			break
 		}
@@ -293,6 +293,41 @@ func (c *TcpConn) SendPak(val interface{}) int {
 	}
 
 	return c.Send(pack)
+}
+
+func (c *TcpConn) SendDirect(data []byte) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+	if err != nil {
+		return -1
+	}
+	wn, err := c.TConn.Write(encode)
+	if err != nil {
+		logger.ERRORV(err)
+		return -1
+	}
+	return wn
+}
+
+func (c *TcpConn) SendPakDirect(val interface{}) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	if c.ownerNet.Package == nil {
+		logger.ERROR("Package Func Error,Can't Send...")
+		return -1
+	}
+
+	pack, err := c.ownerNet.Package(val)
+	if err != nil {
+		return -1
+	}
+
+	return c.SendDirect(pack)
 }
 
 func (c *TcpConn) Close() {

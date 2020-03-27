@@ -113,10 +113,6 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 func (c *KcpConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
-
-	for i := 0; i < HandlerProc; i++ {
-		go c.handlerPump()
-	}
 }
 
 func (c *KcpConn) handlerPump() {
@@ -215,7 +211,9 @@ func (c *KcpConn) recvPump() {
 					continue
 				}
 
-				c.process <- v[4:]
+				if c.ownerNet.OnHandler != nil {
+					c.ownerNet.OnHandler(c, v[4:])
+				}
 			}
 		}
 	}
@@ -265,6 +263,7 @@ func (c *KcpConn) writePump() {
 				return
 			}
 
+			c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 			c.ownerNet.SendPing(c) // 发送心跳
 			break
 		}
@@ -309,6 +308,41 @@ func (c *KcpConn) SendPak(val interface{}) int {
 	}
 
 	return c.Send(pack)
+}
+
+func (c *KcpConn) SendDirect(data []byte) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+	if err != nil {
+		return -1
+	}
+	wn, err := c.TConn.Write(encode)
+	if err != nil {
+		logger.ERRORV(err)
+		return -1
+	}
+	return wn
+}
+
+func (c *KcpConn) SendPakDirect(val interface{}) int {
+	if atomic.LoadInt32(&c.IsClosed) == 1 {
+		return -1
+	}
+
+	if c.ownerNet.Package == nil {
+		logger.ERROR("Package Func Error,Can't Send...")
+		return -1
+	}
+
+	pack, err := c.ownerNet.Package(val)
+	if err != nil {
+		return -1
+	}
+
+	return c.SendDirect(pack)
 }
 
 func (c *KcpConn) Close() {
