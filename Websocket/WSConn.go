@@ -339,6 +339,7 @@ func (c *WSConn) SendDirect(data []byte) int {
 		return -1
 	}
 
+	c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 	encode := c.ownerNet.Encrypt(data, c.CryptKey)
 	err := c.WConn.WriteMessage(c.ownerNet.MsgType, encode)
 	if err != nil {

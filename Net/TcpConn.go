@@ -304,6 +304,8 @@ func (c *TcpConn) SendDirect(data []byte) int {
 	if err != nil {
 		return -1
 	}
+
+	c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 	wn, err := c.TConn.Write(encode)
 	if err != nil {
 		logger.ERRORV(err)

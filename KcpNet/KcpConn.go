@@ -319,6 +319,7 @@ func (c *KcpConn) SendDirect(data []byte) int {
 	if err != nil {
 		return -1
 	}
+	c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 	wn, err := c.TConn.Write(encode)
 	if err != nil {
 		logger.ERRORV(err)
