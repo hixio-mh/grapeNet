@@ -7,9 +7,11 @@ package grapeWSNet
 // 2017/8/3
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -167,6 +169,38 @@ func (c *WSConn) handlerPump() {
 		}
 	}
 }
+
+func (c *WSConn) readMessage() (messageType int, p []byte, err error) {
+	var r io.Reader
+	messageType, r, err = c.WConn.NextReader()
+	if err != nil {
+		return messageType, nil, err
+	}
+
+	buff := bytes.NewBuffer(make([]byte, 0, 1024))
+	rBuff := make([]byte, 1024)
+	for {
+		rn, verr := r.Read(rBuff)
+		if verr != nil || rn == 0 {
+			break
+		}
+
+		buff.Write(rBuff[:rn])
+	}
+
+	temp := buff.Bytes()
+	length := len(temp)
+	var body []byte
+	//are we wasting more than 10% space?
+	if cap(temp) > (length + length/10) {
+		body = make([]byte, length)
+		copy(body, temp)
+	} else {
+		body = temp
+	}
+	return messageType, body, err
+}
+
 func (c *WSConn) recvPump() {
 	defer func() {
 		if p := recover(); p != nil {
@@ -199,7 +233,7 @@ func (c *WSConn) recvPump() {
 
 	for {
 		c.WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
-		wType, wmsg, err := c.WConn.ReadMessage()
+		wType, wmsg, err := c.readMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
 				logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)

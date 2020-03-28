@@ -27,7 +27,7 @@ func main() {
 
 	wsNet.OnClose = OnClose
 	wsNet.OnHandler = RecvEchoMsg
-	wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
+	//wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
 
 	// 连接建立
 	for i := 0; i < 1000; i++ {
