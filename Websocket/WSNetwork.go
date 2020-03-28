@@ -77,8 +77,8 @@ func NetEmptyWS(Origin, wPath string) *WSNetwork {
 		wsPath:    wPath,
 		ChkOrigin: false,
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  40960,
-			WriteBufferSize: 40960,
+			ReadBufferSize:  0,
+			WriteBufferSize: 0,
 		},
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker,
