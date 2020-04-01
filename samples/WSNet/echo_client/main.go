@@ -38,7 +38,7 @@ func main() {
 	}
 
 	for i := 0; i < 1000; i++ {
-		wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msg:%v", i)))
+		wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msg:%v", i)))
 	}
 
 	newTimer := time.NewTicker(10 * time.Second)
