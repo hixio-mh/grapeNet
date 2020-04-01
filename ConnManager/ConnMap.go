@@ -9,6 +9,8 @@ package grapeConn
 import (
 	"context"
 	"errors"
+	"fmt"
+	utils "github.com/koangel/grapeNet/Utils"
 	"sync"
 
 	logger "github.com/koangel/grapeNet/Logger"
@@ -120,6 +122,16 @@ func NewCM() *ConnManager {
 
 func (c *ConnManager) process() {
 	defer func() {
+		if p := recover(); p != nil {
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			// 崩溃重启
+			logger.ERROR("Conn Manager Restart Process...")
+			go c.process()
+		}
+
 		logger.TRACE("Conn Manager Closed...")
 	}()
 

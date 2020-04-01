@@ -14,7 +14,7 @@ var (
 )
 
 func RecvEchoMsg(conn *ws.WSConn, Pak []byte) {
-	fmt.Println(conn.GetSessionId(), string(Pak))
+	//fmt.Println(conn.GetSessionId(), string(Pak))
 	totalRecv += len(Pak)
 }
 
@@ -37,7 +37,7 @@ func main() {
 		}
 	}
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 2000; i++ {
 		wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msg:%v", i)))
 	}
 
