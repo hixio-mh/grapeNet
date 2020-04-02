@@ -7,6 +7,7 @@ package grapeWSNet
 
 import (
 	"net/http"
+	"time"
 
 	"fmt"
 
@@ -77,8 +78,9 @@ func NetEmptyWS(Origin, wPath string) *WSNetwork {
 		wsPath:    wPath,
 		ChkOrigin: false,
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  0,
-			WriteBufferSize: 0,
+			HandshakeTimeout: 65 * time.Second,
+			ReadBufferSize:   0,
+			WriteBufferSize:  0,
 		},
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker,
@@ -117,8 +119,9 @@ func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
 		wsPath:    wPath,
 		ChkOrigin: false,
 		upgrader: websocket.Upgrader{
-			ReadBufferSize:  40960,
-			WriteBufferSize: 40960,
+			HandshakeTimeout: 65 * time.Second,
+			ReadBufferSize:   0,
+			WriteBufferSize:  0,
 		},
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker,

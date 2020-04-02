@@ -43,7 +43,9 @@ type WSConn struct {
 
 	RMData sync.Once
 
-	connLock sync.RWMutex
+	connMux sync.RWMutex
+
+	sendMux sync.Mutex
 }
 
 const (
@@ -86,11 +88,11 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSConn, err error) {
 	conn = nil
 	err = errors.New("unknow error.")
-	ws.DefaultDialer.HandshakeTimeout = 120 * time.Second
 	wsHeader := http.Header{}
 	wsHeader.Set("Origin", sOrigin)
 	wsHeader.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/53.0.2785.143 Safari/537.36")
-	ws, _, derr := ws.DefaultDialer.Dial(fmt.Sprintf("ws://%v%v", addr, wn.wsPath), wsHeader)
+	tctx, _ := context.WithTimeout(context.Background(), 45*time.Second) // 连接45秒超时
+	ws, _, derr := ws.DefaultDialer.DialContext(tctx, fmt.Sprintf("ws://%v%v", addr, wn.wsPath), wsHeader)
 	if derr != nil {
 		logger.ERROR(derr.Error())
 		err = derr
@@ -126,8 +128,8 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 //////////////////////////////////////////////
 // 成员函数
 func (c *WSConn) GetConn() *ws.Conn {
-	c.connLock.RLock()
-	defer c.connLock.RUnlock()
+	c.connMux.RLock()
+	defer c.connMux.RUnlock()
 
 	rc := c.WConn
 	return rc
@@ -256,7 +258,7 @@ func (c *WSConn) recvPump() {
 		}
 
 		WConn.SetReadDeadline(time.Now().Add(c.readTimeout))
-		wType, wmsg, err := c.readMessage()
+		wType, wmsg, err := WConn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
 				logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
@@ -404,6 +406,9 @@ func (c *WSConn) SendDirect(data []byte) int {
 		return -1
 	}
 
+	c.sendMux.Lock()
+	defer c.sendMux.Unlock()
+
 	WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 	encode := c.ownerNet.Encrypt(data, c.CryptKey)
 	err := WConn.WriteMessage(c.ownerNet.MsgType, encode)
@@ -465,9 +470,9 @@ func (c *WSConn) RemoveData() {
 
 		if atomic.LoadInt32(&c.IsClosed) == 1 {
 			// 连接信息
-			c.connLock.Lock()
+			c.connMux.Lock()
 			c.WConn = nil
-			c.connLock.Unlock()
+			c.connMux.Unlock()
 
 			logger.INFO("%v cleanup data...", c.SessionId)
 

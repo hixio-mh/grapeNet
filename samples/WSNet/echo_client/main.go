@@ -10,12 +10,16 @@ import (
 
 /// 测试WS
 var (
-	totalRecv = int(0)
+	totalRecv  = int(0)
+	totalCount = int(0)
+	singlePack = int(0)
 )
 
 func RecvEchoMsg(conn *ws.WSConn, Pak []byte) {
 	//fmt.Println(conn.GetSessionId(), string(Pak))
 	totalRecv += len(Pak)
+	totalCount++
+	singlePack = len(Pak)
 }
 
 func OnClose(conn *ws.WSConn) {
@@ -27,25 +31,26 @@ func main() {
 
 	wsNet.OnClose = OnClose
 	wsNet.OnHandler = RecvEchoMsg
-	//wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
+	wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
 
 	// 连接建立
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		_, err := wsNet.Dial("localhost:47892")
 		if err != nil {
 			log.Fatal(err)
 		}
+
 	}
 
 	for i := 0; i < 2000; i++ {
-		wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msg:%v", i)))
+		go wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msg:%v", i)))
 	}
 
 	newTimer := time.NewTicker(10 * time.Second)
 	for {
 		select {
 		case <-newTimer.C:
-			fmt.Printf("RecvBytes:%v\n", totalRecv)
+			fmt.Printf("RecvBytes:%v-%v-%v\n", totalRecv, totalCount, singlePack)
 		}
 	}
 
