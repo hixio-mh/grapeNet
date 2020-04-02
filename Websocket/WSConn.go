@@ -291,6 +291,20 @@ func (c *WSConn) recvPump() {
 	}
 }
 
+// 此处保证永远只有一个在发送
+func (c *WSConn) writeLockMsg(messageType int, data []byte) error {
+	c.sendMux.Lock()
+	defer c.sendMux.Unlock()
+
+	WConn := c.GetConn()
+	if atomic.LoadInt32(&c.IsClosed) == 1 || WConn == nil {
+		return errors.New("conn is closed...")
+	}
+
+	WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+	return WConn.WriteMessage(messageType, data)
+}
+
 func (c *WSConn) writePump() {
 	c.Wg.Add(1)
 	ticker := time.NewTicker(pingTickTime)
@@ -318,21 +332,19 @@ func (c *WSConn) writePump() {
 			if !ok {
 				return
 			}
-			WConn := c.GetConn()
-			if atomic.LoadInt32(&c.IsClosed) == 1 || WConn == nil {
+
+			if atomic.LoadInt32(&c.IsClosed) == 1 {
 				return
 			}
 
-			WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-
 			if len(bData) == 2 && bData[0] == 0xf1 {
-				if err := WConn.WriteMessage(int(bData[1]), nil); err != nil {
+				if err := c.writeLockMsg(int(bData[1]), nil); err != nil {
 					logger.INFO("writePump ticker error,%v!!!", err)
 					c.Close()
 					return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
 				}
 			} else {
-				if err := WConn.WriteMessage(c.ownerNet.MsgType, bData); err != nil {
+				if err := c.writeLockMsg(c.ownerNet.MsgType, bData); err != nil {
 					logger.ERROR("write Pump error:%v !!!", err)
 					c.Close()
 					return
@@ -348,8 +360,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
-			WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-			if err := WConn.WriteMessage(ws.PingMessage, nil); err != nil {
+			if err := c.writeLockMsg(ws.PingMessage, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				c.Close()
 				return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
@@ -401,17 +412,8 @@ func (c *WSConn) SendDirect(data []byte) int {
 		return -1
 	}
 
-	WConn := c.GetConn()
-	if WConn == nil {
-		return -1
-	}
-
-	c.sendMux.Lock()
-	defer c.sendMux.Unlock()
-
-	WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 	encode := c.ownerNet.Encrypt(data, c.CryptKey)
-	err := WConn.WriteMessage(c.ownerNet.MsgType, encode)
+	err := c.writeLockMsg(c.ownerNet.MsgType, encode)
 	if err != nil {
 		logger.ERRORV(err)
 		return -1

@@ -34,12 +34,23 @@ func main() {
 	wsNet.NetCM.SendMode = 1 // 改为直接发模式测试
 
 	// 连接建立
-	for i := 0; i < 100; i++ {
-		_, err := wsNet.Dial("localhost:47892")
+	for i := 0; i < 2000; i++ {
+		conn, err := wsNet.Dial("localhost:47892")
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		go func(c *ws.WSConn) {
+			log.Println("start tick send...")
+			defer log.Println("stop tick send...")
+			for {
+				if c.IsClosed == 1 {
+					break
+				}
+				c.SendDirect([]byte(fmt.Sprintf("test one packet:%v....", c.SessionId)))
+				time.Sleep(time.Second)
+			}
+		}(conn)
 	}
 
 	for i := 0; i < 2000; i++ {
@@ -51,6 +62,10 @@ func main() {
 		select {
 		case <-newTimer.C:
 			fmt.Printf("RecvBytes:%v-%v-%v\n", totalRecv, totalCount, singlePack)
+
+			for i := 0; i < 2000; i++ {
+				go wsNet.NetCM.Broadcast([]byte(fmt.Sprintf("this is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msgthis is echo msg:%v", i)))
+			}
 		}
 	}
 
