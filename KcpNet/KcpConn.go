@@ -110,6 +110,14 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *KcpConn) SetUserData(user interface{}) {
+	c.UserData = user
+}
+
+func (c *KcpConn) GetUserData() interface{} {
+	return c.UserData
+}
+
 func (c *KcpConn) GetNetConn() net.Conn {
 	return c.TConn
 }

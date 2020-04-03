@@ -125,6 +125,14 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *WSConn) SetUserData(user interface{}) {
+	c.UserData = user
+}
+
+func (c *WSConn) GetUserData() interface{} {
+	return c.UserData
+}
+
 func (c *WSConn) GetNetConn() net.Conn {
 	c.connMux.RLock()
 	defer c.connMux.RUnlock()

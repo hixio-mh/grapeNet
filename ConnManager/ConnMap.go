@@ -27,6 +27,9 @@ const (
 )
 
 type ConnInterface interface {
+	SetUserData(user interface{})
+	GetUserData() interface{}
+
 	GetSessionId() string
 	Send(data []byte) int
 	SendPak(val interface{}) int
@@ -56,6 +59,14 @@ type Conn struct {
 
 	Wg   *sync.WaitGroup
 	Once *sync.Once
+}
+
+func (c *Conn) SetUserData(user interface{}) {
+
+}
+
+func (c *Conn) GetUserData() interface{} {
+	return nil
 }
 
 func (c *Conn) GetNetConn() net.Conn {

@@ -112,6 +112,14 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *TcpConn) SetUserData(user interface{}) {
+	c.UserData = user
+}
+
+func (c *TcpConn) GetUserData() interface{} {
+	return c.UserData
+}
+
 func (c *TcpConn) GetNetConn() net.Conn {
 	return c.TConn
 }
