@@ -7,6 +7,8 @@
 package grapeNet
 
 import (
+	utils "github.com/koangel/grapeNet/Utils"
+	"log"
 	"net"
 
 	"fmt"
@@ -17,9 +19,11 @@ import (
 )
 
 type TCPNetwork struct {
-	listener net.Listener
+	listener *net.TCPListener
 
 	NetCM *cm.ConnManager
+
+	RecvMode int
 
 	/// 所有的callBack函数
 	// 创建用户DATA
@@ -57,7 +61,7 @@ var (
 
 /////////////////////////////
 // 创建网络服务器
-func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
+func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 
 	if HandlerProc <= 1 {
 		HandlerProc = 1
@@ -85,6 +89,8 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 
 		SendPing: defaultPing,
 		SendPong: defalutPong,
+
+		RecvMode: mode,
 	}
 
 	err = tcp.listen(addr)
@@ -94,7 +100,7 @@ func NewTcpServer(addr string) (tcp *TCPNetwork, err error) {
 	return
 }
 
-func NewEmptyTcp() *TCPNetwork {
+func NewEmptyTcp(mode int) *TCPNetwork {
 	if HandlerProc <= 1 {
 		HandlerProc = 1
 	}
@@ -121,6 +127,8 @@ func NewEmptyTcp() *TCPNetwork {
 
 		SendPing: defaultPing,
 		SendPong: defalutPong,
+
+		RecvMode: mode,
 	}
 }
 
@@ -150,7 +158,11 @@ func (c *TCPNetwork) listen(bindAddr string) error {
 		return fmt.Errorf("listener is nil...")
 	}
 
-	lis, err := net.Listen("tcp", bindAddr)
+	tcpAddr, err := net.ResolveTCPAddr("tcp", bindAddr)
+	if err != nil {
+		return err
+	}
+	lis, err := net.ListenTCP("tcp", tcpAddr)
 	if err != nil {
 		return err
 	}
@@ -162,30 +174,42 @@ func (c *TCPNetwork) listen(bindAddr string) error {
 	return nil
 }
 
+func (c *TCPNetwork) handleConn(conn *net.TCPConn) {
+	// 设置TCP选项
+	conn.SetKeepAlive(true)
+
+	var client = NewConn(c, conn, c.CreateUserData())
+
+	c.OnAccept(client)
+	c.NetCM.Register <- client // 注册一个全局对象
+	client.startProc()         // 启动线程
+}
+
 /// 连接池的处理
 func (c *TCPNetwork) onAccept() {
 	defer func() {
 		if p := recover(); p != nil {
-			logger.ERROR("recover panics: %v", p)
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
 		}
 	}()
+
 	// 1000次错误 跳出去
 	for failures := 0; failures < 1000; {
-		conn, listenErr := c.listener.Accept()
+		tconn, listenErr := c.listener.AcceptTCP()
 		if listenErr != nil {
+			if ne, ok := listenErr.(net.Error); ok && ne.Temporary() {
+				log.Printf("accept temp err: %v", ne)
+				continue
+			}
+
 			logger.ERROR("accept error:%v", listenErr)
 			failures++
-			continue
+			return
 		}
 
-		logger.INFO("New Connection:%v，Accept.", conn.RemoteAddr())
-		var client = NewConn(c, conn, c.CreateUserData())
-
-		c.OnAccept(client)
-
-		c.NetCM.Register <- client // 注册一个全局对象
-
-		client.startProc() // 启动线程
+		go c.handleConn(tconn)
 	}
 }
 

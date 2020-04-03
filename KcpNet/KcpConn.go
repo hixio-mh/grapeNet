@@ -110,6 +110,14 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *KcpConn) GetNetConn() net.Conn {
+	return c.TConn
+}
+
+func (c *KcpConn) RemoteAddr() string {
+	return c.TConn.RemoteAddr().String()
+}
+
 func (c *KcpConn) startProc() {
 	go c.writePump()
 	go c.recvPump()

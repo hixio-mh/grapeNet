@@ -8,7 +8,9 @@ package grapeNet
 
 import (
 	"context"
+	"encoding/binary"
 	"fmt"
+	"io"
 	"net"
 	"sync"
 	"sync/atomic"
@@ -34,28 +36,34 @@ type TcpConn struct {
 	CryptKey []byte
 
 	IsClosed int32
+
+	recvMode int
 }
 
 const (
-	ReadWaitPing = 60 * time.Second
-	WriteTicker  = 5 * time.Minute
+	ReadWaitPing = 65 * time.Second
+	WriteTicker  = 3 * time.Minute
 
 	queueCount    = 2048
 	maxPacketSize = 6 * 1024 * 1024 // 6兆数据包最大
 )
 
+const (
+	RMStream   = iota // 使用流算法读写数据包
+	RMReadFull        // 使用固定算法读写数据包 固定算法 包头4字节为固定长度，其余位置为数据包payload
+)
+
 //////////////////////////////////////
 // 创建新连接
 
-func EmptyConn(ctype int) *TcpConn {
+func EmptyConn(ctype, mode int) *TcpConn {
 	newConn := &TcpConn{
 		LastPing: time.Now(),
 		IsClosed: 0,
 
 		CryptKey: []byte{},
 
-		send:    make(chan []byte, queueCount),
-		process: make(chan []byte, queueCount),
+		send: make(chan []byte, queueCount),
 	}
 
 	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
@@ -63,12 +71,13 @@ func EmptyConn(ctype int) *TcpConn {
 	newConn.Wg = new(sync.WaitGroup)
 	newConn.SessionId = cm.CreateUUID(ctype)
 	newConn.Type = ctype
+	newConn.recvMode = mode
 
 	return newConn
 }
 
 func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
-	newConn := EmptyConn(cm.ESERVER_TYPE)
+	newConn := EmptyConn(cm.ESERVER_TYPE, tn.RecvMode)
 
 	newConn.TConn = conn
 	newConn.ownerNet = tn
@@ -87,7 +96,13 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 		return
 	}
 
-	conn = EmptyConn(cm.ECLIENT_TYPE)
+	tcpConn, ok := dconn.(*net.TCPConn)
+	if ok {
+		tcpConn.SetKeepAlive(true)
+		//tcpConn.SetNoDelay(false)
+	}
+
+	conn = EmptyConn(cm.ECLIENT_TYPE, tn.RecvMode)
 	conn.ownerNet = tn
 	conn.TConn = dconn
 	conn.UserData = UData
@@ -97,9 +112,23 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *TcpConn) GetNetConn() net.Conn {
+	return c.TConn
+}
+
+func (c *TcpConn) RemoteAddr() string {
+	return c.TConn.RemoteAddr().String()
+}
+
 func (c *TcpConn) startProc() {
+
 	go c.writePump()
-	go c.recvPump()
+
+	if c.recvMode == RMStream {
+		go c.recvPump()
+	} else {
+		go c.recvPumpFull()
+	}
 }
 
 func (c *TcpConn) handlerPump() {
@@ -204,8 +233,75 @@ func (c *TcpConn) recvPump() {
 	}
 }
 
+func (c *TcpConn) recvPumpFull() {
+	defer func() {
+		if p := recover(); p != nil {
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
+		}
+
+		c.Cancel() // 结束
+		c.Wg.Wait()
+		c.Close() // 关闭SOCKET
+		if c.ownerNet != nil {
+			c.ownerNet.RemoveSession(c.SessionId) // 删除
+		}
+	}()
+
+	for {
+		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		lenBytes := make([]byte, 4)
+		rn, err := io.ReadFull(c.TConn, lenBytes)
+		if err != nil {
+			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+			return
+		}
+
+		if rn == 0 {
+			logger.ERROR("Session %v Recv Len:%v", c.SessionId, rn)
+			return
+		}
+
+		headerLen := binary.LittleEndian.Uint32(lenBytes)
+		payload := make([]byte, headerLen)
+		rn, err = io.ReadFull(c.TConn, payload)
+		if err != nil {
+			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+			return
+		}
+
+		if rn == 0 {
+			logger.ERROR("Session %v Recv Len:%v", c.SessionId, rn)
+			return
+		}
+
+		if atomic.LoadInt32(&c.IsClosed) == 1 {
+			return
+		}
+
+		if c.ownerNet.OnHandler == nil {
+			logger.ERROR("Handler is Null,Closed...")
+			return
+		}
+
+		payload = c.ownerNet.Decrypt(payload, c.CryptKey)
+		if c.ownerNet.SendPong(c, payload) {
+			continue
+		}
+
+		if c.ownerNet.OnHandler != nil {
+			c.ownerNet.OnHandler(c, payload)
+		}
+	}
+}
+
 func (c *TcpConn) writePump() {
-	heartbeat := time.NewTicker(15 * time.Second)
+	heartbeat := time.NewTicker(30 * time.Second)
 	c.Wg.Add(1)
 	defer func() {
 		if p := recover(); p != nil {
@@ -249,7 +345,7 @@ func (c *TcpConn) writePump() {
 			}
 
 			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-			c.ownerNet.SendPing(c) // 发送心跳
+			c.Send([]byte("ping")) // 发送心跳
 			break
 		}
 	}
@@ -351,10 +447,10 @@ func (c *TcpConn) Close() {
 
 func (c *TcpConn) RemoveData() {
 	if atomic.LoadInt32(&c.IsClosed) == 1 {
-		close(c.send)
-		c.send = nil
-		close(c.process)
-		c.process = nil
+		if c.send != nil {
+			close(c.send)
+			c.send = nil
+		}
 	}
 }
 

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	utils "github.com/koangel/grapeNet/Utils"
+	"net"
 	"sync"
 
 	logger "github.com/koangel/grapeNet/Logger"
@@ -33,6 +34,9 @@ type ConnInterface interface {
 	SendDirect(data []byte) int
 	SendPakDirect(val interface{}) int
 
+	GetNetConn() net.Conn
+	RemoteAddr() string
+
 	Close()
 
 	InitData()
@@ -52,6 +56,14 @@ type Conn struct {
 
 	Wg   *sync.WaitGroup
 	Once *sync.Once
+}
+
+func (c *Conn) GetNetConn() net.Conn {
+	return nil
+}
+
+func (c *Conn) RemoteAddr() string {
+	return ""
 }
 
 func (c *Conn) GetSessionId() string {

@@ -131,6 +131,19 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *WSConn) GetNetConn() net.Conn {
+	c.connMux.RLock()
+	defer c.connMux.RUnlock()
+	return c.WConn
+}
+
+func (c *WSConn) RemoteAddr() string {
+	c.connMux.RLock()
+	defer c.connMux.RUnlock()
+
+	return c.WConn.RemoteAddr().String()
+}
+
 func (c *WSConn) GetConn() net.Conn {
 	c.connMux.RLock()
 	defer c.connMux.RUnlock()

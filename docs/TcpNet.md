@@ -8,6 +8,19 @@
 
 轻量级是为了更好的兼容`FlatBuffers`、`Msgpack`等序列化库。
 
+##### 2020-04-03
+
+新增创建连接时选择不同的接收模式：
+
+```
+	RMStream = iota // 使用流算法读写数据包 原来模式不变
+	RMReadFull // 使用固定算法读写数据包 固定算法 包头4字节为固定长度，其余位置为数据包payload
+```
+
+ReadFull模式就是改用固定读取长度模式
+|packet size 4byte|payload data ....| 
+最大限度简化和兼容大部分的网络包
+
 ##### 2020-03-27
 
 由于一段时间测试发现多处理线程存在某种情况下关闭延迟的情况，故而暂时关闭该代码。
@@ -81,7 +94,7 @@ tcp.HandlerProc = 2
 ### 连接服务器
 
 ```
-    connNet := tcp.NewEmptyTcp() // 需要建立空的TcpNet
+    connNet := tcp.NewEmptyTcp(tcp.RMStream) // 需要建立空的TcpNet
 
 	connNet.OnHandler = RecvEchoMsg
 	connNet.OnClose = OnClose

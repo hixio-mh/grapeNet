@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"sync"
 	"sync/atomic"
@@ -124,6 +125,21 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *WSConn) GetNetConn() net.Conn {
+	c.connMux.RLock()
+	defer c.connMux.RUnlock()
+
+	rc := c.WConn
+	return rc.UnderlyingConn()
+}
+
+func (c *WSConn) RemoteAddr() string {
+	c.connMux.RLock()
+	defer c.connMux.RUnlock()
+
+	return c.WConn.RemoteAddr().String()
+}
+
 func (c *WSConn) GetConn() *ws.Conn {
 	c.connMux.RLock()
 	defer c.connMux.RUnlock()
