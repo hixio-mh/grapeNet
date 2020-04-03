@@ -36,7 +36,8 @@ go get -u github.com/koangel/grapeNet/...
 * 流处理
 * Tcp网络
 * Kcp网络(基于KCPGO的网络基础库)
-* Websocket网络 （基础版）
+* Websocket网络 （基础版，兼容版）
+* Websocketv2网络实验版 （使用zero-copy upgrader，更低的损耗和更好效率，不兼容v1版，开启压缩）
 * Codec（任意类型注册对象并在其他位置动态创建该对象）
 * CSV序列化模块（通过Tag可以直接序列化到对象或对象序列化为CSV）
 * Sign生成库（自动将结构或map[string]interface{}排序后生成一个sign，可以自行设置KEY）
@@ -49,7 +50,8 @@ go get -u github.com/koangel/grapeNet/...
 * Seelog (github.com/cihub/seelog)
 * Gopher-lua(github.com/yuin/gopher-lua)
 * Gopher-luar(layeh.com/gopher-luar)
-* Websocket (github.com/gorilla/websocket)
+* Websocket旧版使用 (github.com/gorilla/websocket)
+* Websocketv2使用 (github.com/gobwas/ws)
 * Etcd ClientV3(github.com/coreos/etcd)
 * Bson (gopkg.in/mgo.v2/bson)
 * Daemon (github.com/takama/daemon)
@@ -72,6 +74,7 @@ go get -u github.com/koangel/grapeNet/...
 * [KcpNet Doc](./docs/KcpNet.md)
 * [TcpNet Doc](./docs/TcpNet.md)
 * [WSNet Doc](./docs/WSNet.md)
+* [WSNetV2（实验版） Doc](./docs/WSNetV2.md)
 
 其他文档我会陆陆续续逐步完善并补充。
 

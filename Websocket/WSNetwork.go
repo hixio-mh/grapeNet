@@ -79,7 +79,7 @@ func NetEmptyWS(Origin, wPath string) *WSNetwork {
 		ChkOrigin: false,
 		upgrader: websocket.Upgrader{
 			HandshakeTimeout: 65 * time.Second,
-			ReadBufferSize:   0,
+			ReadBufferSize:   10240,
 			WriteBufferSize:  0,
 		},
 		CreateUserData: defaultCreateUserData,
@@ -120,7 +120,7 @@ func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
 		ChkOrigin: false,
 		upgrader: websocket.Upgrader{
 			HandshakeTimeout: 65 * time.Second,
-			ReadBufferSize:   0,
+			ReadBufferSize:   10240,
 			WriteBufferSize:  0,
 		},
 		CreateUserData: defaultCreateUserData,

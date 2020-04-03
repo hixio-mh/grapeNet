@@ -4,6 +4,7 @@ package main
 
 import (
 	"fmt"
+	logger "github.com/koangel/grapeNet/Logger"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
@@ -48,7 +49,7 @@ func main() {
 	go func() {
 		http.ListenAndServe(":6687", nil)
 	}()
-
+	logger.BuildLogger("./logs", "wsnet.log")
 	wsNet := ws.NewWebsocket(":47892", "", "/ws")
 
 	wsNet.OnHandler = RecvEchoMsg

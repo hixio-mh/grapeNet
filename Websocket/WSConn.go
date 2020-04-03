@@ -31,8 +31,7 @@ type WSConn struct {
 	UserData interface{} // 用户对象
 	LastPing time.Time
 
-	send    chan []byte
-	process chan []byte // 单独的一个数据包
+	send chan []byte
 
 	CryptKey []byte
 
@@ -50,7 +49,7 @@ type WSConn struct {
 
 const (
 	ReadWaitPing = 120 * time.Second
-	WriteTicker  = 10 * time.Minute
+	WriteTicker  = 2 * time.Minute
 
 	pingTickTime = 30 * time.Second
 
@@ -69,7 +68,6 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 		LastPing: time.Now(),
 
 		send:     make(chan []byte, queueCount),
-		process:  make(chan []byte, queueCount),
 		IsClosed: 0,
 
 		writeTimeout: WriteTicker,
@@ -108,8 +106,7 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 		CryptKey: []byte("e63b58801d951ff2435d0a6242a44b6e34062233"),
 
-		send:    make(chan []byte, queueCount),
-		process: make(chan []byte, queueCount),
+		send: make(chan []byte, queueCount),
 
 		writeTimeout: WriteTicker,
 		readTimeout:  ReadWaitPing,
@@ -146,42 +143,6 @@ func (c *WSConn) SetWriteTimeout(t time.Duration) {
 func (c *WSConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
-}
-
-func (c *WSConn) handlerPump() {
-	defer func() {
-		if p := recover(); p != nil {
-			stacks := utils.PanicTrace(4)
-			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
-			logger.ERROR(panic)
-
-			if c.ownerNet.Panic != nil {
-				c.ownerNet.Panic(c, panic)
-			}
-		}
-
-		c.Wg.Done()
-		logger.INFO("handler Pump defer done!!!")
-	}()
-
-	c.Wg.Add(1)
-	for {
-		select {
-		case <-c.Ctx.Done():
-			logger.INFO("%v session handler done...", c.SessionId)
-			return
-		case item := <-c.process:
-			{
-				if atomic.LoadInt32(&c.IsClosed) == 1 {
-					return
-				}
-
-				if c.ownerNet.OnHandler != nil {
-					c.ownerNet.OnHandler(c, item)
-				}
-			}
-		}
-	}
 }
 
 func (c *WSConn) readMessage() (messageType int, p []byte, err error) {
@@ -291,6 +252,32 @@ func (c *WSConn) recvPump() {
 	}
 }
 
+func (c *WSConn) writeFrames(messageType int, data []byte) error {
+	c.sendMux.Lock()
+	defer c.sendMux.Unlock()
+
+	WConn := c.GetConn()
+	if atomic.LoadInt32(&c.IsClosed) == 1 || WConn == nil {
+		return errors.New("conn is closed...")
+	}
+
+	WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+
+	wr, err := c.WConn.NextWriter(messageType)
+	if err != nil {
+		logger.ERRORV(err)
+		return err
+	}
+
+	_, err = wr.Write(data)
+	if err != nil {
+		logger.ERRORV(err)
+		return err
+	}
+
+	return wr.Close()
+}
+
 // 此处保证永远只有一个在发送
 func (c *WSConn) writeLockMsg(messageType int, data []byte) error {
 	c.sendMux.Lock()
@@ -302,7 +289,13 @@ func (c *WSConn) writeLockMsg(messageType int, data []byte) error {
 	}
 
 	WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-	return WConn.WriteMessage(messageType, data)
+	err := WConn.WriteMessage(messageType, data)
+	if err != nil {
+		logger.ERRORV(err)
+		return err
+	}
+
+	return nil
 }
 
 func (c *WSConn) writePump() {
@@ -337,6 +330,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if len(bData) == 2 && bData[0] == 0xf1 {
 				if err := c.writeLockMsg(int(bData[1]), nil); err != nil {
 					logger.INFO("writePump ticker error,%v!!!", err)
@@ -360,6 +354,7 @@ func (c *WSConn) writePump() {
 				return
 			}
 
+			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.writeLockMsg(ws.PingMessage, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				c.Close()
@@ -413,9 +408,11 @@ func (c *WSConn) SendDirect(data []byte) int {
 	}
 
 	encode := c.ownerNet.Encrypt(data, c.CryptKey)
+	c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 	err := c.writeLockMsg(c.ownerNet.MsgType, encode)
 	if err != nil {
 		logger.ERRORV(err)
+		c.Close()
 		return -1
 	}
 	return len(encode)
@@ -481,11 +478,6 @@ func (c *WSConn) RemoveData() {
 			if c.send != nil {
 				close(c.send)
 				c.send = nil
-			}
-
-			if c.process != nil {
-				close(c.process)
-				c.process = nil
 			}
 		}
 	})
