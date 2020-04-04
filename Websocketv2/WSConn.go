@@ -34,7 +34,8 @@ type WSConn struct {
 	UserData interface{} // 用户对象
 	LastPing time.Time
 
-	send chan []byte
+	send    chan []byte
+	process chan []byte
 
 	CryptKey []byte
 
@@ -73,6 +74,7 @@ func NewWConn(wn *WSNetwork, Conn net.Conn, UData interface{}) *WSConn {
 		LastPing: time.Now(),
 
 		send:     make(chan []byte, queueCount),
+		process:  make(chan []byte, queueCount),
 		IsClosed: 0,
 
 		writeTimeout: WriteTicker,
@@ -113,7 +115,8 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 
 		CryptKey: []byte("e63b58801d951ff2435d0a6242a44b6e34062233"),
 
-		send: make(chan []byte, queueCount),
+		send:    make(chan []byte, queueCount),
+		process: make(chan []byte, queueCount),
 
 		writeTimeout: WriteTicker,
 		readTimeout:  ReadWaitPing,
@@ -171,6 +174,46 @@ func (c *WSConn) SetWriteTimeout(t time.Duration) {
 func (c *WSConn) startProc() {
 	go c.writePump()
 	go c.recvPump()
+
+	if HandlerProc > 0 {
+		go c.handlerPump()
+	}
+}
+
+func (c *WSConn) handlerPump() {
+	defer func() {
+		if p := recover(); p != nil {
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
+		}
+
+		c.Wg.Done()
+		logger.INFO("handler Pump defer done!!!")
+	}()
+
+	c.Wg.Add(1)
+	for {
+		select {
+		case <-c.Ctx.Done():
+			logger.INFO("%v session handler done...", c.SessionId)
+			return
+		case item := <-c.process:
+			{
+				if atomic.LoadInt32(&c.IsClosed) == 1 {
+					return
+				}
+
+				if c.ownerNet.OnHandler != nil {
+					c.ownerNet.OnHandler(c, item)
+				}
+			}
+		}
+	}
 }
 
 func (c *WSConn) readData(rw io.ReadWriter) ([]byte, ws.OpCode, error) {
@@ -301,7 +344,15 @@ func (c *WSConn) recvPump() {
 		if c.ownerNet.OnHandler != nil {
 			item := c.ownerNet.Decrypt(payload, c.CryptKey)
 			if len(item) > 1 {
-				c.ownerNet.OnHandler(c, item)
+				if HandlerProc <= 0 {
+					if c.ownerNet.OnHandler != nil {
+						c.ownerNet.OnHandler(c, item)
+					}
+				} else {
+					if c.process != nil {
+						c.process <- item
+					}
+				}
 			}
 		}
 	}
@@ -508,6 +559,11 @@ func (c *WSConn) RemoveData() {
 			if c.send != nil {
 				close(c.send)
 				c.send = nil
+			}
+
+			if c.process != nil {
+				close(c.process)
+				c.process = nil
 			}
 		}
 	})

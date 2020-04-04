@@ -1,23 +1,41 @@
 package main
 
 import (
-	"bytes"
 	"fmt"
+	logger "github.com/koangel/grapeNet/Logger"
 	"log"
+	"math/rand"
 	"time"
 
 	kcpNet "github.com/koangel/grapeNet/KcpNet"
 )
 
 var (
-	totalRecv = int(0)
+	totalRecv  = int(0)
+	totalCount = int(0)
+	singlePack = int(0)
 )
 
+var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+func RandStringRunes(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
+	}
+	return string(b)
+}
+
 func main() {
+	logger.BuildLogger("./logs", "kcpNetv1Cli.log")
 	cnf := kcpNet.NewConfig()
 	cnf.Mode = "aes"
 	cnf.Writetimeout = 35
 	cnf.Readtimeout = 45
+	cnf.Recvmode = kcpNet.RMReadFull
+
+	rand.Seed(time.Now().UnixNano())
+	newSendData := RandStringRunes(2048)
 
 	kcpConn := kcpNet.NewEmptyKcp(cnf)
 	if kcpConn == nil {
@@ -31,14 +49,17 @@ func main() {
 			}
 		}()*/
 
-		go func() {
-			byteBig := bytes.NewBuffer([]byte{})
-			for i := 0; i < 100000; i++ {
-				byteBig.WriteString(fmt.Sprintf("this is echo msg:%v \n", i))
+		go func(c *kcpNet.KcpConn) {
+			log.Println("start tick send...")
+			defer log.Println("stop tick send...")
+			for {
+				if c.IsClosed == 1 {
+					break
+				}
+				c.SendDirect([]byte(newSendData))
+				time.Sleep(time.Second)
 			}
-
-			conn.Send(byteBig.Bytes())
-		}()
+		}(conn)
 	}
 
 	kcpConn.OnClose = func(conn *kcpNet.KcpConn) {
@@ -51,10 +72,12 @@ func main() {
 
 	kcpConn.OnHandler = func(conn *kcpNet.KcpConn, ownerPak []byte) {
 		totalRecv += len(ownerPak)
+		totalCount++
+		singlePack = len(ownerPak)
 	}
 
 	// 连接建立
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 3000; i++ {
 		_, err := kcpConn.Dial("127.0.0.1:4744", nil)
 		if err != nil {
 			log.Fatal(err)
@@ -65,7 +88,7 @@ func main() {
 	for {
 		select {
 		case <-newTimer.C:
-			//fmt.Printf("RecvBytes:%v\n", totalRecv)
+			fmt.Printf("RecvBytes:%v-%v-%v\n", totalRecv, totalCount, singlePack)
 			kcpConn.NetCM.Broadcast([]byte("tick..."))
 		}
 	}

@@ -56,15 +56,15 @@ type TCPNetwork struct {
 }
 
 var (
-	HandlerProc = 2
+	HandlerProc = 1
 )
 
 /////////////////////////////
 // 创建网络服务器
 func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	tcp = &TCPNetwork{
@@ -101,8 +101,8 @@ func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 }
 
 func NewEmptyTcp(mode int) *TCPNetwork {
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	return &TCPNetwork{

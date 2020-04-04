@@ -37,7 +37,7 @@ type TcpConn struct {
 
 	IsClosed int32
 
-	recvMode int
+	removeOnce sync.Once
 }
 
 const (
@@ -56,14 +56,15 @@ const (
 //////////////////////////////////////
 // 创建新连接
 
-func EmptyConn(ctype, mode int) *TcpConn {
+func EmptyConn(ctype int) *TcpConn {
 	newConn := &TcpConn{
 		LastPing: time.Now(),
 		IsClosed: 0,
 
 		CryptKey: []byte{},
 
-		send: make(chan []byte, queueCount),
+		send:    make(chan []byte, queueCount),
+		process: make(chan []byte, queueCount),
 	}
 
 	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
@@ -71,13 +72,12 @@ func EmptyConn(ctype, mode int) *TcpConn {
 	newConn.Wg = new(sync.WaitGroup)
 	newConn.SessionId = cm.CreateUUID(ctype)
 	newConn.Type = ctype
-	newConn.recvMode = mode
 
 	return newConn
 }
 
 func NewConn(tn *TCPNetwork, conn net.Conn, UData interface{}) *TcpConn {
-	newConn := EmptyConn(cm.ESERVER_TYPE, tn.RecvMode)
+	newConn := EmptyConn(cm.ESERVER_TYPE)
 
 	newConn.TConn = conn
 	newConn.ownerNet = tn
@@ -99,10 +99,9 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 	tcpConn, ok := dconn.(*net.TCPConn)
 	if ok {
 		tcpConn.SetKeepAlive(true)
-		//tcpConn.SetNoDelay(false)
 	}
 
-	conn = EmptyConn(cm.ECLIENT_TYPE, tn.RecvMode)
+	conn = EmptyConn(cm.ECLIENT_TYPE)
 	conn.ownerNet = tn
 	conn.TConn = dconn
 	conn.UserData = UData
@@ -132,10 +131,14 @@ func (c *TcpConn) startProc() {
 
 	go c.writePump()
 
-	if c.recvMode == RMStream {
+	if c.ownerNet.RecvMode == RMStream {
 		go c.recvPump()
 	} else {
 		go c.recvPumpFull()
+	}
+
+	if HandlerProc > 0 {
+		go c.handlerPump()
 	}
 }
 
@@ -233,8 +236,14 @@ func (c *TcpConn) recvPump() {
 					continue
 				}
 
-				if c.ownerNet.OnHandler != nil {
-					c.ownerNet.OnHandler(c, v[4:])
+				if HandlerProc <= 0 {
+					if c.ownerNet.OnHandler != nil {
+						c.ownerNet.OnHandler(c, v[4:])
+					}
+				} else {
+					if c.process != nil {
+						c.process <- v[4:]
+					}
 				}
 			}
 		}
@@ -302,8 +311,14 @@ func (c *TcpConn) recvPumpFull() {
 			continue
 		}
 
-		if c.ownerNet.OnHandler != nil {
-			c.ownerNet.OnHandler(c, payload)
+		if HandlerProc <= 0 {
+			if c.ownerNet.OnHandler != nil {
+				c.ownerNet.OnHandler(c, payload)
+			}
+		} else {
+			if c.process != nil {
+				c.process <- payload
+			}
 		}
 	}
 }
@@ -454,12 +469,19 @@ func (c *TcpConn) Close() {
 }
 
 func (c *TcpConn) RemoveData() {
-	if atomic.LoadInt32(&c.IsClosed) == 1 {
-		if c.send != nil {
-			close(c.send)
-			c.send = nil
+	c.removeOnce.Do(func() {
+		if atomic.LoadInt32(&c.IsClosed) == 1 {
+			if c.send != nil {
+				close(c.send)
+				c.send = nil
+			}
+
+			if c.process != nil {
+				close(c.process)
+				c.process = nil
+			}
 		}
-	}
+	})
 }
 
 func (c *TcpConn) InitData() {

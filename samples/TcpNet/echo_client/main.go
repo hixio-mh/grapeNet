@@ -15,12 +15,16 @@ import (
 )
 
 var (
-	totalRecv = int(0)
+	totalRecv  = int(0)
+	totalCount = int(0)
+	singlePack = int(0)
 )
 
 func RecvEchoMsg(conn *tcp.TcpConn, Pak []byte) {
 	//fmt.Println(conn.GetSessionId(), string(Pak))
 	totalRecv += len(Pak)
+	totalCount++
+	singlePack = len(Pak)
 }
 
 func OnClose(conn *tcp.TcpConn) {
@@ -77,7 +81,7 @@ func main() {
 	for {
 		select {
 		case <-newTimer.C:
-			fmt.Printf("RecvBytes:%v\n", totalRecv)
+			fmt.Printf("RecvBytes:%v-%v-%v\n", totalRecv, totalCount, singlePack)
 			//connNet.NetCM.Broadcast([]byte("tick..."))
 		}
 	}

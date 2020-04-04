@@ -66,6 +66,7 @@ type KcpConfig struct {
 	SnmpPeriod   int    `json:"snmpperiod"`
 	Pprof        bool   `json:"pprof"`
 	Quiet        bool   `json:"quiet"`
+	Recvmode     int    `json:"recevMode"`
 }
 
 func NewConfig() *KcpConfig {

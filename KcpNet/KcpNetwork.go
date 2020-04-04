@@ -17,6 +17,8 @@ type KcpNetwork struct {
 
 	KcpConf *KcpConfig
 
+	RecvMode int
+
 	KcpBlock kcp.BlockCrypt
 	/// 所有的callBack函数
 	// 创建用户DATA
@@ -49,7 +51,7 @@ type KcpNetwork struct {
 }
 
 var (
-	HandlerProc = 2
+	HandlerProc = 1
 )
 
 /////////////////////////////
@@ -105,8 +107,8 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 
 	config, block := parserConf(cnf)
 
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	tcp = &KcpNetwork{
@@ -134,6 +136,8 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 
 		SendPing: defaultPing,
 		SendPong: defalutPong,
+
+		RecvMode: cnf.Recvmode,
 	}
 
 	err = tcp.listen(addr)
@@ -147,8 +151,8 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 func NewEmptyKcp(cnf *KcpConfig) *KcpNetwork {
 	config, block := parserConf(cnf)
 
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	return &KcpNetwork{
@@ -176,6 +180,7 @@ func NewEmptyKcp(cnf *KcpConfig) *KcpNetwork {
 
 		SendPing: defaultPing,
 		SendPong: defalutPong,
+		RecvMode: cnf.Recvmode,
 	}
 }
 

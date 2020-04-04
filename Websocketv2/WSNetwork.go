@@ -65,14 +65,14 @@ type WSNetwork struct {
 }
 
 var (
-	HandlerProc = 2
+	HandlerProc = 1
 )
 
 //////////////////////////////////////
 // 新建函数
 func NetEmptyWS(Origin, wPath string) *WSNetwork {
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	NewWC := &WSNetwork{
@@ -140,8 +140,8 @@ func NetEmptyWS(Origin, wPath string) *WSNetwork {
 }
 
 func NewWebsocket(addr, Origin, wPath string) *WSNetwork {
-	if HandlerProc <= 1 {
-		HandlerProc = 1
+	if HandlerProc <= 0 {
+		HandlerProc = 0
 	}
 
 	NewWC := &WSNetwork{
