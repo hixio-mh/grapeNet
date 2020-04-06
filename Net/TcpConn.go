@@ -155,7 +155,7 @@ func (c *TcpConn) handlerPump() {
 		}
 
 		c.Wg.Done()
-		logger.INFO(c.SessionId, " handle full Pump defer done!!!")
+		logger.INFOV(c.SessionId, " handle full Pump defer done!!!")
 	}()
 
 	c.Wg.Add(1)
@@ -196,7 +196,7 @@ func (c *TcpConn) recvPump() {
 		if c.ownerNet != nil {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
-		logger.INFO(c.SessionId, " read Pump defer done!!!")
+		logger.INFOV(c.SessionId, " read Pump defer done!!!")
 	}()
 
 	var buffer = make([]byte, 65535)
@@ -269,7 +269,7 @@ func (c *TcpConn) recvPumpFull() {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
 
-		logger.INFO(c.SessionId, " read full Pump defer done!!!")
+		logger.INFOV(c.SessionId, " read full Pump defer done!!!")
 	}()
 
 	for {
@@ -341,7 +341,7 @@ func (c *TcpConn) writePump() {
 
 		heartbeat.Stop()
 		c.Wg.Done()
-		logger.INFO(c.SessionId, " write Pump defer done!!!")
+		logger.INFOV(c.SessionId, " write Pump defer done!!!")
 	}()
 
 	for {

@@ -161,7 +161,7 @@ func (c *KcpConn) handlerPump() {
 		}
 
 		c.Wg.Done()
-		logger.INFO(c.SessionId, " handler Pump defer done!!!")
+		logger.INFOV(c.SessionId, " handler Pump defer done!!!")
 	}()
 
 	c.Wg.Add(1)
@@ -202,7 +202,7 @@ func (c *KcpConn) recvPump() {
 		if c.ownerNet != nil {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
-		logger.INFO(c.SessionId, " read Pump defer done!!!")
+		logger.INFOV(c.SessionId, " read Pump defer done!!!")
 	}()
 
 	var buffer []byte = make([]byte, 65535)
@@ -277,7 +277,7 @@ func (c *KcpConn) recvPumpFull() {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
 
-		logger.INFO(c.SessionId, " read full Pump defer done!!!")
+		logger.INFOV(c.SessionId, " read full Pump defer done!!!")
 	}()
 
 	for {
@@ -349,7 +349,7 @@ func (c *KcpConn) writePump() {
 
 		heartbeat.Stop()
 		c.Wg.Done()
-		logger.INFO(c.SessionId, " write Pump defer done!!!")
+		logger.INFOV(c.SessionId, " write Pump defer done!!!")
 	}()
 
 	for {
