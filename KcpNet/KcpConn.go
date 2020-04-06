@@ -367,7 +367,7 @@ func (c *KcpConn) writePump() {
 			c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
-				c.Close()
+				c.TConn.Close()
 			}
 			break
 		case <-heartbeat.C:

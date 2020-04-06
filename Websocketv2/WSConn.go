@@ -422,8 +422,7 @@ func (c *WSConn) writePump() {
 			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.writeLockMsg(c.ownerNet.MsgType, bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
-				c.Close()
-				return
+				c.WConn.Close()
 			}
 			break
 		case _, ok := <-ticker.C:
@@ -438,8 +437,7 @@ func (c *WSConn) writePump() {
 			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.writeLockMsg(ws.OpPing, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
-				c.Close()
-				return // 在SELECT中必须使用RETUN，如果使用BREAK代表跳出SELECT，毫无意义
+				c.WConn.Close()
 			}
 			break
 		}

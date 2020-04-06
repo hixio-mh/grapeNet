@@ -359,7 +359,7 @@ func (c *TcpConn) writePump() {
 			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
-				c.Close()
+				c.TConn.Close()
 			}
 			break
 		case <-heartbeat.C:
