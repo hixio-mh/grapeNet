@@ -46,7 +46,10 @@ type WSConn struct {
 
 	connMux sync.RWMutex
 
-	sendMux sync.Mutex
+	sendMux   sync.Mutex
+	closeSock sync.Once
+
+	remoteAddr string
 }
 
 const (
@@ -82,6 +85,7 @@ func NewWConn(wn *WSNetwork, Conn *ws.Conn, UData interface{}) *WSConn {
 	NewWConn.Wg = new(sync.WaitGroup)
 	NewWConn.SessionId = cm.CreateUUID(3)
 	NewWConn.Type = cm.ESERVER_TYPE
+	NewWConn.remoteAddr = Conn.RemoteAddr().String()
 
 	return NewWConn
 }
@@ -122,6 +126,7 @@ func NewDial(wn *WSNetwork, addr, sOrigin string, UData interface{}) (conn *WSCo
 	conn.Wg = new(sync.WaitGroup)
 	conn.SessionId = cm.CreateUUID(4)
 	conn.Type = cm.ECLIENT_TYPE
+	conn.remoteAddr = ws.RemoteAddr().String()
 
 	return
 }
@@ -188,14 +193,14 @@ func (c *WSConn) handlerPump() {
 		}
 
 		c.Wg.Done()
-		logger.INFO("handler Pump defer done!!!")
+		logger.INFO("%v handler Pump defer done!!!", c.remoteAddr)
 	}()
 
 	c.Wg.Add(1)
 	for {
 		select {
 		case <-c.Ctx.Done():
-			logger.INFO("%v session handler done...", c.SessionId)
+			logger.INFO("%v %v session handler done...", c.remoteAddr, c.SessionId)
 			return
 		case item := <-c.process:
 			{
@@ -255,7 +260,7 @@ func (c *WSConn) recvPump() {
 			}
 		}
 
-		logger.INFO("%v recv Pump defer done!!!", c.SessionId)
+		logger.INFO("%v %v recv Pump defer done!!!", c.remoteAddr, c.SessionId)
 		c.Cancel() // 结束
 		c.Wg.Wait()
 		c.Close()                             // 关闭SOCKET
@@ -280,7 +285,7 @@ func (c *WSConn) recvPump() {
 	for {
 		WConn := c.GetConn()
 		if WConn == nil {
-			logger.ERROR("Session %v Close WEBSOCKET", c.SessionId)
+			logger.ERROR("Session %v %v Close WEBSOCKET", c.remoteAddr, c.SessionId)
 			return
 		}
 
@@ -288,11 +293,11 @@ func (c *WSConn) recvPump() {
 		wType, wmsg, err := WConn.ReadMessage()
 		if err != nil {
 			if ws.IsUnexpectedCloseError(err, ws.CloseGoingAway) {
-				logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+				logger.ERROR("Session %v %v Recv Error:%v", c.remoteAddr, c.SessionId, err)
 				return
 			}
 
-			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+			logger.ERROR("Session %v %v Recv Error:%v", c.remoteAddr, c.SessionId, err)
 			return
 		}
 
@@ -301,7 +306,7 @@ func (c *WSConn) recvPump() {
 		}
 
 		if wType != c.ownerNet.MsgType {
-			logger.ERROR("Message Type Not Allowed:%v...", wType)
+			logger.ERROR("Message Type Not Allowed:%v %v...", c.remoteAddr, wType)
 			return
 		}
 
@@ -387,13 +392,13 @@ func (c *WSConn) writePump() {
 		}
 
 		c.Wg.Done()
-		logger.INFO("%v write Pump defer done!!!", c.SessionId)
+		logger.INFO("%v %v write Pump defer done!!!", c.remoteAddr, c.SessionId)
 	}()
 
 	for {
 		select {
 		case <-c.Ctx.Done():
-			logger.INFO("%v session write done...", c.SessionId)
+			logger.INFO("%v %v session write done...", c.remoteAddr, c.SessionId)
 			return
 		case bData, ok := <-c.send:
 			if !ok {
@@ -407,13 +412,15 @@ func (c *WSConn) writePump() {
 			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if len(bData) == 2 && bData[0] == 0xf1 {
 				if err := c.writeLockMsg(int(bData[1]), nil); err != nil {
-					logger.INFO("writePump ticker error,%v!!!", err)
-					c.WConn.Close()
+					logger.INFO("%v writePump ticker error,%v!!!", c.remoteAddr, err)
+					c.CloseSocket()
+					return
 				}
 			} else {
 				if err := c.writeLockMsg(c.ownerNet.MsgType, bData); err != nil {
-					logger.ERROR("write Pump error:%v !!!", err)
-					c.WConn.Close()
+					logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
+					c.CloseSocket()
+					return
 				}
 			}
 			break
@@ -428,8 +435,9 @@ func (c *WSConn) writePump() {
 
 			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.writeLockMsg(ws.PingMessage, nil); err != nil {
-				logger.INFO("writePump ticker error,%v!!!", err)
+				logger.INFO("%v writePump ticker error,%v!!!", c.remoteAddr, err)
 				c.WConn.Close()
+				return
 			}
 			break
 		}
@@ -460,7 +468,7 @@ func (c *WSConn) SendPak(val interface{}) int {
 	}
 
 	if c.ownerNet.Package == nil {
-		logger.ERROR("Package Func Error,Can't Send...")
+		logger.ERROR("%v Package Func Error,Can't Send...", c.remoteAddr)
 		return -1
 	}
 
@@ -495,7 +503,7 @@ func (c *WSConn) SendPakDirect(val interface{}) int {
 	}
 
 	if c.ownerNet.Package == nil {
-		logger.ERROR("Package Func Error,Can't Send...")
+		logger.ERROR("%v Package Func Error,Can't Send...", c.remoteAddr)
 		return -1
 	}
 
@@ -507,6 +515,14 @@ func (c *WSConn) SendPakDirect(val interface{}) int {
 	return c.SendDirect(pack)
 }
 
+func (c *WSConn) CloseSocket() {
+	c.closeSock.Do(func() {
+		c.Cancel()
+		atomic.StoreInt32(&c.IsClosed, 1)
+		c.WConn.Close() // 关闭连接
+	})
+}
+
 func (c *WSConn) Close() {
 	c.Once.Do(func() {
 		WConn := c.GetConn()
@@ -515,11 +531,9 @@ func (c *WSConn) Close() {
 		}
 
 		if atomic.LoadInt32(&c.IsClosed) == 0 {
-			atomic.StoreInt32(&c.IsClosed, 1)
-
 			c.ownerNet.OnClose(c)
 
-			WConn.Close() // 关闭连接
+			c.CloseSocket()
 		}
 	})
 }
@@ -544,7 +558,7 @@ func (c *WSConn) RemoveData() {
 			c.WConn = nil
 			c.connMux.Unlock()
 
-			logger.INFO("%v cleanup data...", c.SessionId)
+			logger.INFO("%v %v cleanup data...", c.remoteAddr, c.SessionId)
 
 			if c.send != nil {
 				close(c.send)

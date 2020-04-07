@@ -77,7 +77,7 @@ func main() {
 	}
 
 	// 连接建立
-	for i := 0; i < 3000; i++ {
+	for i := 0; i < 500; i++ {
 		_, err := kcpConn.Dial("127.0.0.1:4744", nil)
 		if err != nil {
 			log.Fatal(err)

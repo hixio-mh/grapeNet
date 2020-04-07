@@ -37,6 +37,9 @@ type KcpConn struct {
 	readTime  int
 
 	removeOnce sync.Once
+	closeSock  sync.Once
+
+	remoteAddr string
 }
 
 const (
@@ -82,6 +85,8 @@ func NewConn(tn *KcpNetwork, conn *kcp.UDPSession, UData interface{}) *KcpConn {
 	newConn.ownerNet = tn
 	newConn.UserData = UData
 
+	newConn.remoteAddr = conn.RemoteAddr().String()
+
 	return newConn
 }
 
@@ -113,6 +118,7 @@ func NewDial(tn *KcpNetwork, addr string, UData interface{}) (conn *KcpConn, err
 	conn.ownerNet = tn
 	conn.TConn = dconn
 	conn.UserData = UData
+	conn.remoteAddr = dconn.RemoteAddr().String()
 
 	return
 }
@@ -132,7 +138,7 @@ func (c *KcpConn) GetNetConn() net.Conn {
 }
 
 func (c *KcpConn) RemoteAddr() string {
-	return c.TConn.RemoteAddr().String()
+	return c.remoteAddr
 }
 
 func (c *KcpConn) startProc() {
@@ -161,14 +167,14 @@ func (c *KcpConn) handlerPump() {
 		}
 
 		c.Wg.Done()
-		logger.INFOV(c.SessionId, " handler Pump defer done!!!")
+		logger.INFOV("addr:", c.remoteAddr, ",", c.SessionId, " handler Pump defer done!!!")
 	}()
 
 	c.Wg.Add(1)
 	for {
 		select {
 		case <-c.Ctx.Done():
-			logger.INFO("%v session handler done...", c.SessionId)
+			logger.INFO("%v %v session handler done...", c.remoteAddr, c.SessionId)
 			return
 		case item := <-c.process:
 			{
@@ -202,7 +208,7 @@ func (c *KcpConn) recvPump() {
 		if c.ownerNet != nil {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
-		logger.INFOV(c.SessionId, " read Pump defer done!!!")
+		logger.INFOV("addr:", c.remoteAddr, ",", c.SessionId, " read Pump defer done!!!")
 	}()
 
 	var buffer []byte = make([]byte, 65535)
@@ -210,29 +216,30 @@ func (c *KcpConn) recvPump() {
 
 	for {
 		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
-		rn, err := c.TConn.Read(buffer)
-		if err != nil {
-			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
-			return
-		}
-
-		if rn == 0 {
-			logger.ERROR("Session %v Recv Len:%v", c.SessionId, rn)
-			return
-		}
 
 		if atomic.LoadInt32(&c.IsClosed) == 1 {
 			return
 		}
 
+		rn, err := c.TConn.Read(buffer)
+		if err != nil {
+			logger.ERROR("Session %v %v Recv Error:%v", c.remoteAddr, c.SessionId, err)
+			return
+		}
+
+		if rn == 0 {
+			logger.ERROR("Session %v %v Recv Len:%v", c.remoteAddr, c.SessionId, rn)
+			return
+		}
+
 		if c.ownerNet.OnHandler == nil {
-			logger.ERROR("Handler is Null,Closed...")
+			logger.ERROR("%v Handler is Null,Closed...", c.remoteAddr)
 			return
 		}
 
 		// 拆包
 		if lStream.Write(buffer, rn) == -1 {
-			logger.ERROR("Session %v Recv Error:Packet size is too big...", c.SessionId)
+			logger.ERROR("Session %v %v Recv Error:Packet size is too big...", c.remoteAddr, c.SessionId)
 			return
 		}
 
@@ -277,20 +284,25 @@ func (c *KcpConn) recvPumpFull() {
 			c.ownerNet.RemoveSession(c.SessionId) // 删除
 		}
 
-		logger.INFOV(c.SessionId, " read full Pump defer done!!!")
+		logger.INFOV("addr:", c.remoteAddr, ",", c.SessionId, " read full Pump defer done!!!")
 	}()
 
 	for {
 		c.TConn.SetReadDeadline(time.Now().Add(time.Duration(c.readTime) * time.Second))
+
+		if atomic.LoadInt32(&c.IsClosed) == 1 {
+			return
+		}
+
 		lenBytes := make([]byte, 4)
 		rn, err := io.ReadFull(c.TConn, lenBytes)
 		if err != nil {
-			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+			logger.ERROR("Session %v %v Recv Error:%v", c.remoteAddr, c.SessionId, err)
 			return
 		}
 
 		if rn == 0 {
-			logger.ERROR("Session %v Recv Len:%v", c.SessionId, rn)
+			logger.ERROR("Session %v %v Recv Len:%v", c.remoteAddr, c.SessionId, rn)
 			return
 		}
 
@@ -298,21 +310,16 @@ func (c *KcpConn) recvPumpFull() {
 		payload := make([]byte, headerLen)
 		rn, err = io.ReadFull(c.TConn, payload)
 		if err != nil {
-			logger.ERROR("Session %v Recv Error:%v", c.SessionId, err)
+			logger.ERROR("Session %v %v Recv Error:%v", c.remoteAddr, c.SessionId, err)
 			return
 		}
 
 		if rn == 0 {
-			logger.ERROR("Session %v Recv Len:%v", c.SessionId, rn)
+			logger.ERROR("Session %v %v Recv Len:%v", c.remoteAddr, c.SessionId, rn)
 			return
 		}
-
-		if atomic.LoadInt32(&c.IsClosed) == 1 {
-			return
-		}
-
 		if c.ownerNet.OnHandler == nil {
-			logger.ERROR("Handler is Null,Closed...")
+			logger.ERROR("%v Handler is Null,Closed...", c.remoteAddr)
 			return
 		}
 
@@ -349,13 +356,13 @@ func (c *KcpConn) writePump() {
 
 		heartbeat.Stop()
 		c.Wg.Done()
-		logger.INFOV(c.SessionId, " write Pump defer done!!!")
+		logger.INFOV("addr:", c.remoteAddr, ",", c.SessionId, " write Pump defer done!!!")
 	}()
 
 	for {
 		select {
 		case <-c.Ctx.Done():
-			logger.INFO("%v session write done...", c.SessionId)
+			logger.INFO("%v %v session write done...", c.remoteAddr, c.SessionId)
 			return
 		case bData, ok := <-c.send:
 			if !ok {
@@ -368,8 +375,9 @@ func (c *KcpConn) writePump() {
 
 			c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 			if _, err := c.TConn.Write(bData); err != nil {
-				logger.ERROR("write Pump error:%v !!!", err)
-				c.TConn.Close()
+				logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
+				c.CloseSocket()
+				return
 			}
 			break
 		case <-heartbeat.C:
@@ -412,7 +420,7 @@ func (c *KcpConn) SendPak(val interface{}) int {
 	}
 
 	if c.ownerNet.Package == nil {
-		logger.ERROR("Package Func Error,Can't Send...")
+		logger.ERROR("%v Package Func Error,Can't Send...", c.remoteAddr)
 		return -1
 	}
 
@@ -448,7 +456,7 @@ func (c *KcpConn) SendPakDirect(val interface{}) int {
 	}
 
 	if c.ownerNet.Package == nil {
-		logger.ERROR("Package Func Error,Can't Send...")
+		logger.ERROR("%v Package Func Error,Can't Send...", c.remoteAddr)
 		return -1
 	}
 
@@ -460,6 +468,13 @@ func (c *KcpConn) SendPakDirect(val interface{}) int {
 	return c.SendDirect(pack)
 }
 
+func (c *KcpConn) CloseSocket() {
+	c.closeSock.Do(func() {
+		atomic.StoreInt32(&c.IsClosed, 1)
+		c.TConn.Close() // 关闭连接
+	})
+}
+
 func (c *KcpConn) Close() {
 	c.Once.Do(func() {
 		// 都没连上怎么关
@@ -468,11 +483,10 @@ func (c *KcpConn) Close() {
 		}
 
 		if atomic.LoadInt32(&c.IsClosed) == 0 {
-			atomic.StoreInt32(&c.IsClosed, 1)
-
 			c.ownerNet.OnClose(c)
 
 			c.TConn.Close() // 关闭连接
+			c.CloseSocket()
 		}
 	})
 }

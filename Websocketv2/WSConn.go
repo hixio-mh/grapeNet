@@ -423,6 +423,7 @@ func (c *WSConn) writePump() {
 			if err := c.writeLockMsg(c.ownerNet.MsgType, bData); err != nil {
 				logger.ERROR("write Pump error:%v !!!", err)
 				c.WConn.Close()
+				return
 			}
 			break
 		case _, ok := <-ticker.C:
@@ -438,6 +439,7 @@ func (c *WSConn) writePump() {
 			if err := c.writeLockMsg(ws.OpPing, nil); err != nil {
 				logger.INFO("writePump ticker error,%v!!!", err)
 				c.WConn.Close()
+				return
 			}
 			break
 		}
