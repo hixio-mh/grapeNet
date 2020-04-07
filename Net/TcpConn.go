@@ -367,7 +367,6 @@ func (c *TcpConn) writePump() {
 			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
-				c.CloseSocket()
 				return
 			}
 			break

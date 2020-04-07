@@ -413,13 +413,11 @@ func (c *WSConn) writePump() {
 			if len(bData) == 2 && bData[0] == 0xf1 {
 				if err := c.writeLockMsg(int(bData[1]), nil); err != nil {
 					logger.INFO("%v writePump ticker error,%v!!!", c.remoteAddr, err)
-					c.CloseSocket()
 					return
 				}
 			} else {
 				if err := c.writeLockMsg(c.ownerNet.MsgType, bData); err != nil {
 					logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
-					c.CloseSocket()
 					return
 				}
 			}
@@ -436,7 +434,6 @@ func (c *WSConn) writePump() {
 			c.WConn.SetWriteDeadline(time.Now().Add(WriteTicker))
 			if err := c.writeLockMsg(ws.PingMessage, nil); err != nil {
 				logger.INFO("%v writePump ticker error,%v!!!", c.remoteAddr, err)
-				c.WConn.Close()
 				return
 			}
 			break

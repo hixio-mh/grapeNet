@@ -376,7 +376,6 @@ func (c *KcpConn) writePump() {
 			c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
-				c.CloseSocket()
 				return
 			}
 			break
