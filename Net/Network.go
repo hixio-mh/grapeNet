@@ -23,7 +23,8 @@ type TCPNetwork struct {
 
 	NetCM *cm.ConnManager
 
-	RecvMode int
+	RecvMode  int
+	SendRetry int
 
 	/// 所有的callBack函数
 	// 创建用户DATA
@@ -90,7 +91,8 @@ func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 		SendPing: defaultPing,
 		SendPong: defalutPong,
 
-		RecvMode: mode,
+		RecvMode:  mode,
+		SendRetry: 3,
 	}
 
 	err = tcp.listen(addr)
@@ -128,7 +130,8 @@ func NewEmptyTcp(mode int) *TCPNetwork {
 		SendPing: defaultPing,
 		SendPong: defalutPong,
 
-		RecvMode: mode,
+		RecvMode:  mode,
+		SendRetry: 3,
 	}
 }
 

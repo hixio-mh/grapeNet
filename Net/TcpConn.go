@@ -376,7 +376,7 @@ func (c *TcpConn) writePump() {
 			}
 
 			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-			c.Send([]byte("ping")) // 发送心跳
+			c.SendDirect([]byte("ping")) // 发送心跳
 			break
 		}
 	}
@@ -431,14 +431,23 @@ func (c *TcpConn) SendDirect(data []byte) int {
 	if err != nil {
 		return -1
 	}
-
-	c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
-	wn, err := c.TConn.Write(encode)
-	if err != nil {
-		logger.ERRORV(err)
-		return -1
+	retry := c.ownerNet.SendRetry
+	if retry <= 0 {
+		retry = 1
 	}
-	return wn
+
+	for i := 0; i < retry; i++ {
+		c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+		wn, err := c.TConn.Write(encode)
+		if err != nil {
+			logger.ERRORV(err)
+			continue
+		}
+
+		return wn
+	}
+
+	return -1
 }
 
 func (c *TcpConn) SendPakDirect(val interface{}) int {

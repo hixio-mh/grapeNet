@@ -53,6 +53,7 @@ func main() {
 
 	connNet.OnHandler = RecvEchoMsg
 	connNet.OnClose = OnClose
+	connNet.NetCM.SendMode = 1
 	// 连接建立
 	for i := 0; i < 3500; i++ {
 		conn, err := connNet.Dial("localhost:8799", nil)

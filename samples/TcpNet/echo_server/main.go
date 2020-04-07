@@ -22,7 +22,7 @@ var (
 func RecvEchoMsg(conn *tcp.TcpConn, Pak []byte) {
 	//fmt.Println(string(Pak))
 
-	conn.Send(Pak) // 回执
+	conn.SendDirect(Pak) // 回执
 
 	totalRecv += len(Pak)
 	totalCount++
@@ -49,6 +49,7 @@ func main() {
 	tcpNet.OnHandler = RecvEchoMsg // 绑定callback
 	tcpNet.OnAccept = func(conn *tcp.TcpConn) {}
 	tcpNet.OnClose = func(conn *tcp.TcpConn) {}
+	tcpNet.NetCM.SendMode = 1 // 直接发送模式
 
 	go tcpNet.Runnable() // 占满并跑起来
 	newTimer := time.NewTicker(10 * time.Second)
