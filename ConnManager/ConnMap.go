@@ -26,6 +26,11 @@ const (
 	defaultChan = 1024
 )
 
+type QPackItem struct {
+	Length  int32
+	Payload []byte
+}
+
 type ConnInterface interface {
 	SetUserData(user interface{})
 	GetUserData() interface{}

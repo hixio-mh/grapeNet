@@ -24,6 +24,10 @@ func RecvEchoMsg(conn *tcp.TcpConn, Pak []byte) {
 
 	conn.SendDirect(Pak) // 回执
 
+	//if rand.Intn(100000) <= 3000 {
+	//	conn.CloseSocket()
+	//}
+
 	totalRecv += len(Pak)
 	totalCount++
 	singlePack = len(Pak)

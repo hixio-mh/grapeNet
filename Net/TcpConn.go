@@ -31,7 +31,7 @@ type TcpConn struct {
 	LastPing time.Time
 
 	send    chan []byte
-	process chan []byte // 单独的一个数据包
+	process chan *cm.QPackItem // 单独的一个数据包
 
 	CryptKey []byte
 
@@ -41,11 +41,14 @@ type TcpConn struct {
 	closeSock  sync.Once
 
 	remoteAddr string
+
+	ReadTime  time.Duration
+	WriteTime time.Duration
 }
 
 const (
 	ReadWaitPing = 65 * time.Second
-	WriteTicker  = 2 * time.Minute
+	WriteTicker  = 45 * time.Second
 
 	queueCount    = 2048
 	maxPacketSize = 6 * 1024 * 1024 // 6兆数据包最大
@@ -67,7 +70,10 @@ func EmptyConn(ctype int) *TcpConn {
 		CryptKey: []byte{},
 
 		send:    make(chan []byte, queueCount),
-		process: make(chan []byte, queueCount),
+		process: make(chan *cm.QPackItem, queueCount),
+
+		WriteTime: WriteTicker,
+		ReadTime:  ReadWaitPing,
 	}
 
 	newConn.Ctx, newConn.Cancel = context.WithCancel(context.Background())
@@ -116,6 +122,14 @@ func NewDial(tn *TCPNetwork, addr string, UData interface{}) (conn *TcpConn, err
 
 //////////////////////////////////////////////
 // 成员函数
+func (c *TcpConn) SetReadTime(d time.Duration) {
+	c.ReadTime = d
+}
+
+func (c *TcpConn) SetWriteTime(w time.Duration) {
+	c.WriteTime = w
+}
+
 func (c *TcpConn) SetUserData(user interface{}) {
 	c.UserData = user
 }
@@ -176,7 +190,7 @@ func (c *TcpConn) handlerPump() {
 				}
 
 				if c.ownerNet.OnHandler != nil {
-					c.ownerNet.OnHandler(c, item)
+					c.ownerNet.OnHandler(c, item.Payload)
 				}
 			}
 		}
@@ -208,7 +222,7 @@ func (c *TcpConn) recvPump() {
 	var lStream stream.BufferIO
 
 	for {
-		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
+		c.TConn.SetReadDeadline(time.Now().Add(c.ReadTime))
 		if atomic.LoadInt32(&c.IsClosed) == 1 {
 			return
 		}
@@ -247,7 +261,10 @@ func (c *TcpConn) recvPump() {
 					}
 				} else {
 					if c.process != nil {
-						c.process <- v[4:]
+						c.process <- &cm.QPackItem{
+							Length:  int32(len(v[4:])),
+							Payload: v[4:],
+						}
 					}
 				}
 			}
@@ -278,8 +295,7 @@ func (c *TcpConn) recvPumpFull() {
 	}()
 
 	for {
-		c.TConn.SetReadDeadline(time.Now().Add(ReadWaitPing))
-
+		c.TConn.SetReadDeadline(time.Now().Add(c.ReadTime))
 		if atomic.LoadInt32(&c.IsClosed) == 1 {
 			return
 		}
@@ -325,7 +341,10 @@ func (c *TcpConn) recvPumpFull() {
 			}
 		} else {
 			if c.process != nil {
-				c.process <- payload
+				c.process <- &cm.QPackItem{
+					Length:  int32(headerLen),
+					Payload: payload,
+				}
 			}
 		}
 	}
@@ -364,7 +383,7 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
-			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+			c.TConn.SetWriteDeadline(time.Now().Add(c.WriteTime))
 			if _, err := c.TConn.Write(bData); err != nil {
 				logger.ERROR("%v write Pump error:%v !!!", c.remoteAddr, err)
 				return
@@ -375,7 +394,7 @@ func (c *TcpConn) writePump() {
 				return
 			}
 
-			c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+			c.TConn.SetWriteDeadline(time.Now().Add(c.WriteTime))
 			c.SendDirect([]byte("ping")) // 发送心跳
 			break
 		}
@@ -437,7 +456,7 @@ func (c *TcpConn) SendDirect(data []byte) int {
 	}
 
 	for i := 0; i < retry; i++ {
-		c.TConn.SetWriteDeadline(time.Now().Add(WriteTicker))
+		c.TConn.SetWriteDeadline(time.Now().Add(c.WriteTime))
 		wn, err := c.TConn.Write(encode)
 		if err != nil {
 			logger.ERRORV(err)

@@ -10,6 +10,7 @@ import (
 	utils "github.com/koangel/grapeNet/Utils"
 	"log"
 	"net"
+	//"time"
 
 	"fmt"
 
@@ -92,7 +93,7 @@ func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 		SendPong: defalutPong,
 
 		RecvMode:  mode,
-		SendRetry: 3,
+		SendRetry: 1,
 	}
 
 	err = tcp.listen(addr)
@@ -131,7 +132,7 @@ func NewEmptyTcp(mode int) *TCPNetwork {
 		SendPong: defalutPong,
 
 		RecvMode:  mode,
-		SendRetry: 3,
+		SendRetry: 1,
 	}
 }
 
