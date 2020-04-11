@@ -27,6 +27,8 @@ type TCPNetwork struct {
 	RecvMode  int
 	SendRetry int
 
+	UseHeaderLen bool // 是否自动附加头部4字节(RMFULL模式下强制附加)
+
 	/// 所有的callBack函数
 	// 创建用户DATA
 	CreateUserData func() interface{}
@@ -70,9 +72,9 @@ func NewTcpServer(mode int, addr string) (tcp *TCPNetwork, err error) {
 	}
 
 	tcp = &TCPNetwork{
-		listener: nil,
-		NetCM:    cm.NewCM(),
-
+		listener:       nil,
+		NetCM:          cm.NewCM(),
+		UseHeaderLen:   true,
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker, // bson转换或打包
 		Unpackage:      defaultByteData,
@@ -109,9 +111,9 @@ func NewEmptyTcp(mode int) *TCPNetwork {
 	}
 
 	return &TCPNetwork{
-		listener: nil,
-		NetCM:    cm.NewCM(),
-
+		listener:       nil,
+		NetCM:          cm.NewCM(),
+		UseHeaderLen:   true,
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker, // bson转换或打包
 		Unpackage:      defaultByteData,

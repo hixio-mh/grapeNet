@@ -7,6 +7,7 @@
 package grapeNet
 
 import (
+	"bufio"
 	"context"
 	"encoding/binary"
 	"fmt"
@@ -55,8 +56,9 @@ const (
 )
 
 const (
-	RMStream   = iota // 使用流算法读写数据包
-	RMReadFull        // 使用固定算法读写数据包 固定算法 包头4字节为固定长度，其余位置为数据包payload
+	RMStream     = iota // 使用流算法读写数据包
+	RMReadFull          // 使用固定算法读写数据包 固定算法 包头4字节为固定长度，其余位置为数据包payload
+	RMStringLine        // 通过使用\n来进行文本拆分
 )
 
 //////////////////////////////////////
@@ -150,10 +152,13 @@ func (c *TcpConn) startProc() {
 
 	go c.writePump()
 
-	if c.ownerNet.RecvMode == RMStream {
-		go c.recvPump()
-	} else {
+	switch c.ownerNet.RecvMode {
+	case RMReadFull:
 		go c.recvPumpFull()
+	case RMStringLine:
+		go c.recvPumpString()
+	default:
+		go c.recvPump()
 	}
 
 	if HandlerProc > 0 {
@@ -266,6 +271,61 @@ func (c *TcpConn) recvPump() {
 							Payload: v[4:],
 						}
 					}
+				}
+			}
+		}
+	}
+}
+
+func (c *TcpConn) recvPumpString() {
+	defer func() {
+		if p := recover(); p != nil {
+			stacks := utils.PanicTrace(4)
+			panic := fmt.Sprintf("recover panics: %v call:%v", p, string(stacks))
+			logger.ERROR(panic)
+
+			if c.ownerNet.Panic != nil {
+				c.ownerNet.Panic(c, panic)
+			}
+		}
+
+		c.Cancel() // 结束
+		c.Wg.Wait()
+		c.Close() // 关闭SOCKET
+		if c.ownerNet != nil {
+			c.ownerNet.RemoveSession(c.SessionId) // 删除
+		}
+
+		logger.INFOV("addr:", c.remoteAddr, ",", c.SessionId, " read string Pump defer done!!!")
+	}()
+
+	readerLine := bufio.NewScanner(c.TConn)
+	readerLine.Split(bufio.ScanLines)
+	for readerLine.Scan() {
+		c.TConn.SetReadDeadline(time.Now().Add(c.ReadTime))
+		if atomic.LoadInt32(&c.IsClosed) == 1 {
+			return
+		}
+
+		if c.ownerNet.OnHandler == nil {
+			logger.ERROR("%v Handler is Null,Closed...", c.remoteAddr)
+			return
+		}
+
+		payload := c.ownerNet.Decrypt(readerLine.Bytes(), c.CryptKey)
+		if c.ownerNet.SendPong(c, payload) {
+			continue
+		}
+
+		if HandlerProc <= 0 {
+			if c.ownerNet.OnHandler != nil {
+				c.ownerNet.OnHandler(c, payload)
+			}
+		} else {
+			if c.process != nil {
+				c.process <- &cm.QPackItem{
+					Length:  int32(len(payload)),
+					Payload: payload,
 				}
 			}
 		}
@@ -406,9 +466,18 @@ func (c *TcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
-	if err != nil {
-		return -1
+	var (
+		encode []byte
+		err    error
+	)
+
+	if (c.ownerNet.RecvMode == RMReadFull || c.ownerNet.UseHeaderLen) && c.ownerNet.RecvMode != RMStringLine {
+		encode, err = stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+		if err != nil {
+			return -1
+		}
+	} else {
+		encode = c.ownerNet.Encrypt(data, c.CryptKey)
 	}
 
 	select {
@@ -446,10 +515,20 @@ func (c *TcpConn) SendDirect(data []byte) int {
 		return -1
 	}
 
-	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
-	if err != nil {
-		return -1
+	var (
+		encode []byte
+		err    error
+	)
+
+	if (c.ownerNet.RecvMode == RMReadFull || c.ownerNet.UseHeaderLen) && c.ownerNet.RecvMode != RMStringLine {
+		encode, err = stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+		if err != nil {
+			return -1
+		}
+	} else {
+		encode = c.ownerNet.Encrypt(data, c.CryptKey)
 	}
+
 	retry := c.ownerNet.SendRetry
 	if retry <= 0 {
 		retry = 1

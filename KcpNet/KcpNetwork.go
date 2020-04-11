@@ -19,6 +19,8 @@ type KcpNetwork struct {
 
 	RecvMode int
 
+	UseHeaderLen bool // 是否自动附加头部4字节(RMFULL模式下强制附加)
+
 	KcpBlock kcp.BlockCrypt
 	/// 所有的callBack函数
 	// 创建用户DATA
@@ -112,11 +114,11 @@ func NewKcpServer(addr string, cnf *KcpConfig) (tcp *KcpNetwork, err error) {
 	}
 
 	tcp = &KcpNetwork{
-		listener: nil,
-		NetCM:    cm.NewCM(),
-
-		KcpConf:  config,
-		KcpBlock: block,
+		listener:     nil,
+		NetCM:        cm.NewCM(),
+		UseHeaderLen: true,
+		KcpConf:      config,
+		KcpBlock:     block,
 
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker, // bson转换或打包
@@ -156,11 +158,11 @@ func NewEmptyKcp(cnf *KcpConfig) *KcpNetwork {
 	}
 
 	return &KcpNetwork{
-		listener: nil,
-		NetCM:    cm.NewCM(),
-
-		KcpConf:  config,
-		KcpBlock: block,
+		listener:     nil,
+		NetCM:        cm.NewCM(),
+		UseHeaderLen: true,
+		KcpConf:      config,
+		KcpBlock:     block,
 
 		CreateUserData: defaultCreateUserData,
 		Package:        defaultBytePacker, // bson转换或打包

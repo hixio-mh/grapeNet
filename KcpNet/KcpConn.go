@@ -396,9 +396,18 @@ func (c *KcpConn) Send(data []byte) int {
 		return -1
 	}
 
-	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
-	if err != nil {
-		return -1
+	var (
+		encode []byte
+		err    error
+	)
+
+	if c.ownerNet.RecvMode == RMReadFull || c.ownerNet.UseHeaderLen {
+		encode, err = stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+		if err != nil {
+			return -1
+		}
+	} else {
+		encode = c.ownerNet.Encrypt(data, c.CryptKey)
 	}
 
 	select {
@@ -436,10 +445,20 @@ func (c *KcpConn) SendDirect(data []byte) int {
 		return -1
 	}
 
-	encode, err := stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
-	if err != nil {
-		return -1
+	var (
+		encode []byte
+		err    error
+	)
+
+	if c.ownerNet.RecvMode == RMReadFull || c.ownerNet.UseHeaderLen {
+		encode, err = stream.PackerOnce(data, c.ownerNet.Encrypt, c.CryptKey)
+		if err != nil {
+			return -1
+		}
+	} else {
+		encode = c.ownerNet.Encrypt(data, c.CryptKey)
 	}
+
 	c.TConn.SetWriteDeadline(time.Now().Add(time.Duration(c.writeTime) * time.Second))
 	wn, err := c.TConn.Write(encode)
 	if err != nil {
