@@ -108,7 +108,7 @@ func (job *SyncJob) SliceJob(slice interface{}, breakup int, fn func(start, end 
 	total := rv.Len()
 	if total > breakup {
 		jobCount := total / breakup
-		if jobCount%breakup > 0 {
+		if total%breakup > 0 {
 			jobCount++
 		}
 
