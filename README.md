@@ -15,9 +15,9 @@ Go语言编写轻量级网络库 (grapeNet is a lightweight and Easy Use Network
 
 本库内的大部分子模块均用于实际线上游戏产品、防御类产品以及支付类产品中，经过一定的检验，可以放心使用。
 
-慢慢更新中，很多坑要填，根据近期测试，除LUA库和网络库外，其他库均可直接用于商业产品。
+网络库已经经过多个版本调整，可以基本使用。
 
-个人博客：http://grapec.me/
+慢慢更新中，很多坑要填，根据近期测试，除LUA库外，其他库均可直接用于商业产品。
 
 > 注意：由于ETCD V3 CLIENT不支持1.9以下版本的GO环境，所以ETCD库不在对1.8以下版本支持，TravisCI的BUILD状态也不支持1.9以下版本。
 > 仅仅支持 Go 1.10以及以上版本。
@@ -43,7 +43,7 @@ go get -u github.com/koangel/grapeNet/...
 * Sign生成库（自动将结构或map[string]interface{}排序后生成一个sign，可以自行设置KEY）
 * Etcd简易封装，针对Watcher做任意参数的监听callback(多Key监听)
 * Continers容器库，游戏用背包容器、带有锁的并行LIST等
-* Utils多种简易辅助库的集合（三元运算符、数值转换、轻并行执行库、启动Daemon）
+* Utils多种简易辅助库的集合（三元运算符、数值转换、轻并行执行库、启动Daemon、平均数容器、有限列表）
 
 ## 依赖第三方
 

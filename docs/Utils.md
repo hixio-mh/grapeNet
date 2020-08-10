@@ -199,3 +199,18 @@ exmple: simple_daemon install -d abc -c ddd
 
 windows上依赖：nssm [http://nssm.cc/] 
 linux上的执行顺序是：systemd -> initctrl -> systemv(rc[num].d) ，目前已知工作目录存在BUG，所以目前的解决方案是，启动时指定参数是否使用当前目录运行。
+
+## 平均数计算函数
+
+用于在统计数据中，计算内存中的平均数据，按照每次写入数据，通过每个数值计算出总的平均数值，通常用于计算一些机器数据。
+
+```
+avgVar := &AVGLimit{}
+avgVar.Add(200)
+avgVar.Add(222)
+avgVar.Add(111)
+
+avgVar.String() // 输出文本的平均数据
+avgVar.Value() // 取数据
+```
+
